@@ -56,9 +56,21 @@ export default function App() {
   const [nextTraining, setNextTraining] = useState(null);
   const [riotAccount, setRiotAccount] = useState(null); 
   const [invitesCount, setInvitesCount] = useState(0);
-  
-  // Contador de Notificações de Chat (Negociações)
   const [unreadNegotiations, setUnreadNegotiations] = useState(0);
+
+  // --- NOVA LÓGICA DA NOTIFICAÇÃO DOS TORNEIOS ---
+  const [showTournamentsBadge, setShowTournamentsBadge] = useState(
+    localStorage.getItem("seen_tournaments") !== "true"
+  );
+
+  // Assim que entrares na aba de torneios, apaga a notificação e guarda no navegador
+  useEffect(() => {
+    if (location.pathname === "/tournaments") {
+      setShowTournamentsBadge(false);
+      localStorage.setItem("seen_tournaments", "true");
+    }
+  }, [location.pathname]);
+  // ------------------------------------------------
 
   const resetSessionUi = () => {
     setUserName(null);
@@ -218,7 +230,6 @@ export default function App() {
     return () => { mounted = false; };
   }, [teamRefreshKey]); 
 
-  // Listener em Real-time
   useEffect(() => {
     if (!myTeam) return;
     const channel = supabase.channel('global-chat-notifs')
@@ -299,7 +310,6 @@ export default function App() {
           )}
           <SidebarItem icon={<Search size={20} />} label="Procurar Scrims" active={location.pathname === "/scrims"} onClick={() => navigate("/scrims")} />
           
-          {/* BOTÃO COM O NOTIFICADOR VERMELHO */}
           {!teamLoading && myTeam && (
             <SidebarItem icon={<Handshake size={20} />} label="Negociações" active={location.pathname === "/negotiations"} onClick={() => navigate("/negotiations")} badge={unreadNegotiations > 0 ? unreadNegotiations : null} />
           )}
@@ -307,7 +317,16 @@ export default function App() {
           <div className="px-4 mt-8 mb-2 text-[10px] font-bold text-gray-600 uppercase tracking-widest">Gestão</div>
           <SidebarItem icon={<Swords size={20} />} label="Treinos" active={location.pathname === "/trainings"} onClick={() => navigate("/trainings")} />
           <SidebarItem icon={<Map size={20} />} label="Estratégias" active={location.pathname === "/strategies"} onClick={() => navigate("/strategies")} />
-          <SidebarItem icon={<Trophy size={20} />} label="Torneios" active={location.pathname === "/tournaments"} onClick={() => navigate("/tournaments")} badge="!" />
+          
+          {/* 👇 AQUI ESTÁ O BOTÃO DOS TORNEIOS ATUALIZADO 👇 */}
+          <SidebarItem 
+            icon={<Trophy size={20} />} 
+            label="Torneios" 
+            active={location.pathname === "/tournaments"} 
+            onClick={() => navigate("/tournaments")} 
+            badge={showTournamentsBadge ? "1" : null} 
+          />
+
           <SidebarItem icon={<Award size={20} />} label="Sistema de Honra" active={location.pathname === "/honor"} onClick={() => navigate("/honor")} />
         </nav>
 
@@ -346,18 +365,15 @@ export default function App() {
             <Route path="/dashboard" element={<DashboardPage myTeam={myTeam} teamLoading={teamLoading} riotAccount={riotAccount} nextTraining={nextTraining} />} />
             <Route path="/notifications" element={<NotificationsPage onTeamJoined={() => { setTeamRefreshKey((k) => k + 1); setInvitesCount(0); }} />} />
             <Route path="/chat" element={<ChatPage myTeam={myTeam} userName={displayName} />} />
-            
-            {/* === ROTA DE NEGOCIAÇÕES === */}
             <Route path="/negotiations" element={<NegotiationsPage myTeam={myTeam} setGlobalUnread={setUnreadNegotiations} />} />
-
             <Route path="/team" element={<TeamPage refreshKey={teamRefreshKey} onGoFindTeam={() => navigate("/find-team")} onGoCreateTeam={() => navigate("/create-team")} riotAccount={riotAccount} userName={userName} />} />
             <Route path="/create-team" element={<CreateTeamPage existingTeam={myTeam} onCancel={() => navigate("/dashboard")} goFindTeam={() => navigate("/find-team")} onCreated={async () => { await loadMyTeamAndInvites(); setTeamRefreshKey((k) => k + 1); navigate("/team"); }} />} />
             <Route path="/find-team" element={<FindTeamPage onCancel={() => navigate("/dashboard")} onJoined={async () => { await loadMyTeamAndInvites(); setTeamRefreshKey((k) => k + 1); navigate("/team"); }} />} />
             <Route path="/scrims" element={<ScrimsPage myTeam={myTeam} />} />
             <Route path="/trainings" element={<TrainingsPage myTeam={myTeam} />} />
             <Route path="/strategies" element={<div className="h-[calc(100vh-0px)]"><StrategiesPage /></div>} />
-            <Route path="/tournaments" element={<TournamentsPage />} />
-            <Route path="/honor" element={<HonorPage />} />
+            <Route path="/tournaments" element={<TournamentsPage myTeam={myTeam} />} />
+            <Route path="/honor" element={<HonorPage myTeam={myTeam} />} />
             <Route path="/profile" element={<ProfilePage userName={displayName} riotAccount={riotAccount} />} />
             <Route path="/settings" element={<SettingsPage riotAccount={riotAccount} setRiotAccount={setRiotAccount} userName={userName} />} />
           </Routes>

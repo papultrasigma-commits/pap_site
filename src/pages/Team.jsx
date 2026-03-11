@@ -36,18 +36,28 @@ const MiniStat = ({ icon, label, value }) => (
 );
 
 const MemberRow = ({ member, isMe, riotAccount, currentUserName, myRole, onUpdateRole, onKick }) => {
-  let displayUsername = member?.profiles?.username || "Utilizador";
+  let displayUsername = "Utilizador";
 
+  // Lógica para mostrar o Nome da Riot (ou Username se a Riot não estiver vinculada)
   if (isMe) {
-    if (riotAccount) {
+    if (riotAccount && riotAccount.name) {
       displayUsername = `${riotAccount.name} #${riotAccount.tag}`;
-    } else if (currentUserName) {
-      displayUsername = currentUserName;
+    } else {
+      displayUsername = currentUserName || member?.profiles?.username || "Utilizador";
+    }
+  } else {
+    const profileRiot = member?.profiles?.riot_account;
+    if (profileRiot && profileRiot.name) {
+      displayUsername = `${profileRiot.name} #${profileRiot.tag}`;
+    } else {
+      displayUsername = member?.profiles?.username || "Utilizador";
     }
   }
 
   const rank = member?.profiles?.valorant_rank || "—";
-  const initial = (displayUsername?.trim()?.[0] || "U").toUpperCase();
+  
+  // Remove o "(Tu)" para calcular a inicial, mas adiciona visualmente no final
+  const initial = (displayUsername?.replace("(Tu)", "").trim()?.[0] || "U").toUpperCase();
 
   const isOwner = myRole === "owner";
   const isTargetOwner = member?.role === "owner";
@@ -62,7 +72,7 @@ const MemberRow = ({ member, isMe, riotAccount, currentUserName, myRole, onUpdat
         <div className="min-w-0">
           <div className="flex items-center gap-2 min-w-0">
             <div className="font-bold text-white truncate">
-              {displayUsername}
+              {displayUsername} {isMe && <span className="text-gray-500 font-normal ml-1">(Tu)</span>}
             </div>
             <RoleBadge role={member?.role} />
           </div>
@@ -163,10 +173,11 @@ export default function Team({ refreshKey, onGoFindTeam, onGoCreateTeam, riotAcc
 
     setTeam(t);
 
+    // MUDANÇA: Adicionado o 'riot_account' ao select para trazer os Nicks do Valorant
     const { data: m, error: mErr } = await supabase
       .from("team_members")
       .select(
-        "user_id, role, created_at, profiles:profiles!team_members_user_id_profiles_fkey(id,username,valorant_rank)"
+        "user_id, role, created_at, profiles:profiles!team_members_user_id_profiles_fkey(id,username,valorant_rank,riot_account)"
       )
       .eq("team_id", t.id)
       .order("created_at", { ascending: true });
@@ -194,7 +205,6 @@ export default function Team({ refreshKey, onGoFindTeam, onGoCreateTeam, riotAcc
     else loadTeamAndMembers();
   };
 
-  // --- AQUI ESTÁ A GRANDE MUDANÇA: AGORA SÓ ENVIA CONVITE ---
   const handleInvitePlayer = async () => {
     const usernameToInvite = window.prompt("Introduz o Username exato do jogador que pretendes recrutar:");
     
@@ -207,11 +217,9 @@ export default function Team({ refreshKey, onGoFindTeam, onGoCreateTeam, riotAcc
       const { data: existingTeam } = await supabase.from("team_members").select("team_id").eq("user_id", profile.id).maybeSingle();
       if (existingTeam) return alert("Esse jogador já pertence a uma equipa!");
 
-      // Verifica se já enviaste convite antes
       const { data: existingInvite } = await supabase.from("team_invites").select("id").eq("team_id", team.id).eq("user_id", profile.id).maybeSingle();
       if (existingInvite) return alert("Já enviaste um convite pendente para este jogador!");
 
-      // INSERE O CONVITE NA TABELA (E NÃO NA EQUIPA)
       const { error: inviteErr } = await supabase.from("team_invites").insert({
         team_id: team.id,
         user_id: profile.id,
