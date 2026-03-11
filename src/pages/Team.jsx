@@ -17,20 +17,21 @@ const RoleBadge = ({ role }) => {
   }
 
   return (
-    <span className={`text-[10px] font-bold px-2 py-1 rounded border uppercase tracking-widest ${style}`}>
+    <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded border uppercase tracking-widest shrink-0 ${style}`}>
       {label}
     </span>
   );
 };
 
 const MiniStat = ({ icon, label, value }) => (
-  <div className="bg-[#141617] border border-gray-800 rounded-xl p-5 flex items-center gap-4">
-    <div className="w-12 h-12 rounded-xl bg-[#0f1112] border border-gray-800 flex items-center justify-center text-gray-300">
+  <div className="bg-[#141617] border border-gray-800 rounded-xl p-5 flex items-center gap-4 hover:border-gray-700 transition-colors">
+    {/* O shrink-0 garante que o ícone NUNCA fica esmagado (oval) */}
+    <div className="w-12 h-12 shrink-0 rounded-xl bg-[#0f1112] border border-gray-800 flex items-center justify-center text-gray-300 shadow-inner">
       {icon}
     </div>
-    <div>
-      <div className="text-2xl font-black text-white leading-none">{value}</div>
-      <div className="text-[10px] font-bold uppercase tracking-widest text-gray-500 mt-1">{label}</div>
+    <div className="min-w-0 flex-1">
+      <div className="text-2xl font-black text-white leading-none truncate">{value}</div>
+      <div className="text-[10px] font-bold uppercase tracking-widest text-gray-500 mt-1.5 truncate">{label}</div>
     </div>
   </div>
 );
@@ -38,7 +39,6 @@ const MiniStat = ({ icon, label, value }) => (
 const MemberRow = ({ member, isMe, riotAccount, currentUserName, myRole, onUpdateRole, onKick }) => {
   let displayUsername = "Utilizador";
 
-  // Lógica para mostrar o Nome da Riot (ou Username se a Riot não estiver vinculada)
   if (isMe) {
     if (riotAccount && riotAccount.name) {
       displayUsername = `${riotAccount.name} #${riotAccount.tag}`;
@@ -55,8 +55,6 @@ const MemberRow = ({ member, isMe, riotAccount, currentUserName, myRole, onUpdat
   }
 
   const rank = member?.profiles?.valorant_rank || "—";
-  
-  // Remove o "(Tu)" para calcular a inicial, mas adiciona visualmente no final
   const initial = (displayUsername?.replace("(Tu)", "").trim()?.[0] || "U").toUpperCase();
 
   const isOwner = myRole === "owner";
@@ -64,28 +62,29 @@ const MemberRow = ({ member, isMe, riotAccount, currentUserName, myRole, onUpdat
   const isTargetVice = member?.role === "vice";
 
   return (
-    <div className="bg-[#141617] border border-gray-800 rounded-xl px-5 py-4 flex items-center justify-between gap-4 hover:border-gray-700 transition">
+    <div className="bg-[#141617] border border-gray-800 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:border-gray-700 transition">
+      
       <div className="flex items-center gap-4 min-w-0">
-        <div className="w-10 h-10 rounded-full bg-red-500/90 flex items-center justify-center font-black text-white shrink-0">
+        <div className="w-10 h-10 shrink-0 rounded-full bg-red-500/90 flex items-center justify-center font-black text-white shadow-sm">
           {initial}
         </div>
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 min-w-0">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-3">
             <div className="font-bold text-white truncate">
               {displayUsername} {isMe && <span className="text-gray-500 font-normal ml-1">(Tu)</span>}
             </div>
             <RoleBadge role={member?.role} />
           </div>
-          <div className="text-xs text-gray-500 mt-1">{rank}</div>
+          <div className="text-xs text-gray-500 mt-1 truncate">{rank}</div>
         </div>
       </div>
 
       {isOwner && !isMe && !isTargetOwner && (
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 pt-3 md:pt-0 border-t border-gray-800 md:border-t-0 mt-1 md:mt-0 shrink-0">
           {isTargetVice ? (
             <button 
               onClick={() => onUpdateRole(member.user_id, "member")}
-              className="text-xs text-gray-400 hover:text-white flex items-center gap-1 transition"
+              className="text-xs font-medium text-gray-400 hover:text-white flex items-center gap-1.5 transition bg-[#0f1112] px-3 py-1.5 rounded-lg border border-gray-800 hover:border-gray-600"
               title="Despromover a Membro"
             >
               <Shield size={14} /> Despromover
@@ -93,7 +92,7 @@ const MemberRow = ({ member, isMe, riotAccount, currentUserName, myRole, onUpdat
           ) : (
             <button 
               onClick={() => onUpdateRole(member.user_id, "vice")}
-              className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1 transition"
+              className="text-xs font-medium text-blue-400 hover:text-blue-300 flex items-center gap-1.5 transition bg-blue-500/10 px-3 py-1.5 rounded-lg border border-blue-500/20 hover:border-blue-500/40"
               title="Promover a Vice-Capitão"
             >
               <Shield size={14} /> Promover
@@ -102,7 +101,7 @@ const MemberRow = ({ member, isMe, riotAccount, currentUserName, myRole, onUpdat
           
           <button 
             onClick={() => onKick(member.user_id, displayUsername)}
-            className="text-xs text-red-500 hover:text-red-400 flex items-center gap-1 transition"
+            className="text-xs font-medium text-red-500 hover:text-red-400 flex items-center gap-1.5 transition bg-red-500/10 px-3 py-1.5 rounded-lg border border-red-500/20 hover:border-red-500/40"
             title="Remover da Equipa"
           >
             <UserMinus size={14} /> Remover
@@ -173,7 +172,6 @@ export default function Team({ refreshKey, onGoFindTeam, onGoCreateTeam, riotAcc
 
     setTeam(t);
 
-    // MUDANÇA: Adicionado o 'riot_account' ao select para trazer os Nicks do Valorant
     const { data: m, error: mErr } = await supabase
       .from("team_members")
       .select(
@@ -270,16 +268,16 @@ export default function Team({ refreshKey, onGoFindTeam, onGoCreateTeam, riotAcc
         <h2 className="text-2xl font-bold text-white mb-2">Ainda não tens equipa</h2>
         <p className="text-gray-400 mb-6">Cria uma equipa, ou procura uma existente para entrares. Verifica a tua aba de Notificações se estiveres à espera de convites.</p>
 
-        <div className="flex gap-3">
+        <div className="flex gap-3 flex-wrap">
           <button
             onClick={onGoFindTeam}
-            className="bg-white text-black hover:bg-gray-200 font-bold py-3 px-6 rounded uppercase text-xs tracking-wider"
+            className="bg-white text-black hover:bg-gray-200 font-bold py-3 px-6 rounded uppercase text-xs tracking-wider transition-colors"
           >
             Procurar Equipa
           </button>
           <button
             onClick={onGoCreateTeam}
-            className="bg-red-500 text-white hover:bg-red-600 font-bold py-3 px-6 rounded uppercase text-xs tracking-wider"
+            className="bg-red-500 text-white hover:bg-red-600 font-bold py-3 px-6 rounded uppercase text-xs tracking-wider transition-colors"
           >
             Criar Equipa
           </button>
@@ -292,59 +290,63 @@ export default function Team({ refreshKey, onGoFindTeam, onGoCreateTeam, riotAcc
 
   return (
     <div className="animate-fade-in max-w-6xl mx-auto pb-10">
-      <div className="mb-6">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <div className="text-gray-500 text-xs font-bold uppercase tracking-widest">Minha Equipa</div>
-            <h1 className="text-4xl font-black text-white tracking-tight mt-1">
+      <div className="mb-8">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+          <div className="min-w-0">
+            <div className="text-gray-500 text-xs font-bold uppercase tracking-widest mb-1">A Minha Equipa</div>
+            <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight truncate">
               {team.name} <span className="text-red-500">.</span>
             </h1>
-            <div className="text-gray-500 text-sm mt-1 flex items-center gap-2">
-              <Globe size={14} />
-              {team.color_id || "—"}
+            <div className="text-gray-500 text-sm mt-2 flex items-center gap-2">
+              <Globe size={14} className="shrink-0" />
+              <span className="truncate">{team.color_id || "Região não definida"}</span>
             </div>
           </div>
 
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3 shrink-0">
             {(myRole === "owner" || myRole === "vice") && (
               <button
                 onClick={handleInvitePlayer}
-                className="bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-5 rounded uppercase text-xs tracking-wider flex items-center gap-2 transition"
+                className="bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-5 rounded-lg uppercase text-xs tracking-wider flex items-center gap-2 transition shadow-lg shadow-red-500/20"
               >
-                <UserPlus size={16} /> Recrutar Jogadores
+                <UserPlus size={16} /> Recrutar
               </button>
             )}
 
             <button
               onClick={leaveTeam}
               disabled={leaving}
-              className="bg-transparent border border-gray-700 hover:border-gray-400 text-gray-200 font-bold py-3 px-5 rounded uppercase text-xs tracking-wider flex items-center gap-2 disabled:opacity-50 transition"
+              className="bg-[#141617] border border-gray-700 hover:border-gray-500 hover:bg-gray-800 text-gray-300 font-bold py-3 px-5 rounded-lg uppercase text-xs tracking-wider flex items-center gap-2 disabled:opacity-50 transition"
             >
-              <DoorOpen size={16} /> {leaving ? "A sair..." : "Sair da Equipa"}
+              <DoorOpen size={16} /> {leaving ? "A sair..." : "Sair"}
             </button>
           </div>
         </div>
       </div>
 
       {errorMsg && (
-        <div className="bg-red-500/10 border border-red-500/20 text-red-300 text-sm p-3 rounded mb-4">
+        <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-sm p-4 rounded-xl mb-6 font-medium">
           {errorMsg}
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <MiniStat icon={<Users size={18} />} label="Membros" value={membersCount} />
-        <MiniStat icon={<Trophy size={18} />} label="Vitórias" value={0} />
-        <MiniStat icon={<TrendingUp size={18} />} label="Rank Médio" value={"—"} />
+      {/* QUADROS DE ESTATÍSTICAS */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <MiniStat icon={<Users size={20} />} label="Membros Ativos" value={membersCount} />
+        <MiniStat icon={<Trophy size={20} className="text-yellow-500" />} label="Vitórias (Scrims)" value={0} />
+        <MiniStat icon={<TrendingUp size={20} className="text-blue-500" />} label="Rank Médio" value={"—"} />
       </div>
 
-      <div className="bg-[#181a1b] border border-gray-800 rounded-xl p-5">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <div className="w-1 h-5 bg-red-500 rounded" />
-            <h3 className="text-white font-black">Membros da Equipa</h3>
+      {/* LISTA DE MEMBROS */}
+      <div className="bg-[#181a1b] border border-gray-800 rounded-2xl p-6 shadow-xl">
+        <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-800/50">
+          <div className="flex items-center gap-3">
+            <div className="w-1.5 h-6 bg-red-500 rounded-full" />
+            <h3 className="text-white font-black text-lg">Membros da Equipa</h3>
           </div>
-          <div className="text-xs text-gray-500 font-bold uppercase tracking-widest">{membersCount} total</div>
+          <div className="text-xs text-gray-400 font-bold uppercase tracking-widest bg-[#0f1112] px-3 py-1.5 rounded-lg border border-gray-800">
+            {membersCount} {membersCount === 1 ? 'Membro' : 'Membros'}
+          </div>
         </div>
 
         <div className="space-y-3">

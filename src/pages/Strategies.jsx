@@ -1,11 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
 /**
- * Estrategias (React/Vite)
- * - Left panel: Sequência / Equipa / Ferramentas / Agentes / Ações
- * - Centro: selector maps (canto sup dir), mapa + canvas (drawing)
- * - Footer: barra de agentes com icons
- * - Flutuante: abilities (C/Q/E/X) que aparece ao clicar e permite arrastar
+ * Estrategias (React/Vite) - Estilo Valoplant Pro com Valorant-API
+ * - 100% Automático: Vai buscar os agentes e habilidades à API oficial.
+ * - Suporta novos agentes automaticamente sem atualizar o código.
+ * - Leve e rápido, sem necessidade de ficheiros locais!
  */
 
 const MAPS = [
@@ -18,25 +17,6 @@ const MAPS = [
   { id: "sunset", label: "Sunset" },
 ];
 
-const AGENTS = [
-  "Astra", "Breach", "Brimstone", "Chamber", "Clove", "Cypher", "Deadlock",
-  "Fade", "Gekko", "Harbor", "Iso", "Jett", "KAYO", "Killjoy", "Neon",
-  "Omen", "Phoenix", "Raze", "Reyna", "Sage", "Skye", "Sova", "Viper", "Yoru",
-];
-
-// abilities para tooltip (se tiveres outras, troca aqui)
-const agentInfo = Object.fromEntries(
-  AGENTS.map((a) => [a, { abilities: ["C", "Q", "E", "X"] }])
-);
-
-// Caminho base local para os agentes e habilidades
-const BASE = "../../src/assets/agentes";
-
-function urlAsset(file) {
-  return new URL(`${BASE}/${file}`, import.meta.url).href;
-}
-
-// --- LINKS OFICIAIS APENAS PARA OS MAPAS ---
 const MAP_IMAGES = {
   abyss: "https://media.valorant-api.com/maps/224b0a95-48b9-f703-1bd8-67aca101a61f/displayicon.png",
   ascent: "https://media.valorant-api.com/maps/7eaecc1b-4337-bbf6-6ab9-04b8f06b3319/displayicon.png",
@@ -47,42 +27,116 @@ const MAP_IMAGES = {
   sunset: "https://media.valorant-api.com/maps/92584fbe-486a-b1b2-9faa-39b0f486b498/displayicon.png"
 };
 
-function mapSrc(mapId) {
-  return MAP_IMAGES[mapId] || MAP_IMAGES.ascent;
-}
+function mapSrc(mapId) { return MAP_IMAGES[mapId] || MAP_IMAGES.ascent; }
 
-// Imagens dos agentes e habilidades a usar os ficheiros locais novamente
-function agentIconPng(agent) {
-  return urlAsset(`${agent}_icon.png`);
-}
-function agentIconWebp(agent) {
-  return urlAsset(`${agent}_icon.webp`);
-}
-function abilityPng(agent, ab) {
-  return urlAsset(`${agent}_${ab.toLowerCase()}.png`);
-}
+// === LÓGICA DE FORMAS GIGANTES ===
+const getSpecialShape = (agent, ability) => {
+  if (ability === "AGENT") return null;
+
+  const key = `${agent}_${ability}`;
+  const getAgentColor = (a) => {
+    const colors = {
+      Astra: "rgba(150, 50, 200, 0.7)",
+      Viper: "rgba(0, 255, 100, 0.7)",
+      Harbor: "rgba(0, 150, 255, 0.7)",
+      Brimstone: "rgba(255, 100, 0, 0.7)",
+      Clove: "rgba(255, 100, 200, 0.7)",
+      Omen: "rgba(100, 0, 255, 0.7)",
+      Neon: "rgba(0, 50, 255, 0.7)",
+      Phoenix: "rgba(255, 150, 0, 0.7)",
+      Killjoy: "rgba(255, 255, 0, 0.2)",
+      Fade: "rgba(100, 100, 100, 0.5)",
+      Sova: "rgba(0, 200, 255, 0.3)"
+    };
+    return colors[a] || "rgba(255, 255, 255, 0.3)";
+  };
+
+  const color = getAgentColor(agent);
+
+  // A API por vezes retorna em ordens diferentes, mas tentamos manter a correspondência visual
+  switch (key) {
+    case "Astra_X": case "Viper_E": case "Harbor_E": case "Neon_C": case "Phoenix_C":
+      return { type: "wall", color, width: 1400, height: 8, border: `2px solid ${color.replace("0.7", "1")}` };
+
+    case "Astra_C": case "Brimstone_E": case "Clove_E": case "Harbor_Q": 
+    case "Omen_E": case "Viper_Q": case "Jett_C": case "Cypher_Q":
+      return { type: "smoke", color, size: 90, border: `2px solid ${color.replace("0.7", "1")}` };
+
+    case "Killjoy_X":
+      return { type: "ult", color, size: 350, border: "2px dashed #ffff00" };
+    case "Viper_X":
+      return { type: "ult", color: "rgba(0, 255, 100, 0.4)", size: 300, border: "2px solid #00ff88" };
+    case "Brimstone_X":
+      return { type: "ult", color: "rgba(255, 100, 0, 0.5)", size: 150 };
+    case "Fade_E": case "Sova_E":
+      return { type: "recon", color, size: 220, border: `1px solid ${color.replace("0.3", "0.8")}` };
+
+    default:
+      return null;
+  }
+};
 
 export default function StrategiesPage() {
   const [activeStep, setActiveStep] = useState(1);
-  const [teamSide, setTeamSide] = useState("ally"); // ally | enemy
+  const [teamSide, setTeamSide] = useState("ally"); 
   const [drawingMode, setDrawingMode] = useState(false);
-
   const [mapId, setMapId] = useState("ascent");
 
-  const [selectedAgent, setSelectedAgent] = useState(null);
-  const [selectedAbility, setSelectedAbility] = useState("AGENT");
-  const [markers, setMarkers] = useState([]); // {id, agent, ability, team, step, x%, y%}
+  // === ESTADO DA VALORANT API ===
+  const [apiAgents, setApiAgents] = useState({});
+  const [loadingApi, setLoadingApi] = useState(true);
 
-  // Menu Flutuante interativo (substitui o tooltip antigo)
-  const [floatingMenu, setFloatingMenu] = useState({ show: false, x: 0, y: 0, agent: null });
+  const [markers, setMarkers] = useState([]); 
+  const [floatingMenu, setFloatingMenu] = useState({ show: false, markerId: null, agent: null, x: 0, y: 0 });
 
   const mapWrapRef = useRef(null);
   const canvasRef = useRef(null);
-
   const isDrawing = useRef(false);
   const last = useRef({ x: 0, y: 0 });
 
-  // --- canvas resize ---
+  // === FETCH À VALORANT API ===
+  useEffect(() => {
+    fetch("https://valorant-api.com/v1/agents?isPlayableCharacter=true")
+      .then((res) => res.json())
+      .then((data) => {
+        const fetchedAgents = {};
+        
+        data.data.forEach((agent) => {
+          // Remove a barra do KAY/O para não dar erros de chaves
+          const name = agent.displayName.replace("/", "");
+          
+          // Mapeia os poderes pela ordem visual da UI do jogo (C, Q, E, X)
+          const abs = {};
+          const hudKeys = ["C", "Q", "E", "X"];
+          let keyIdx = 0;
+          
+          agent.abilities.forEach((ab) => {
+            // Ignorar passivas ou habilidades sem ícone
+            if (ab.slot === "Passive" || !ab.displayIcon) return;
+            if (keyIdx < 4) {
+              abs[hudKeys[keyIdx]] = ab.displayIcon;
+              keyIdx++;
+            }
+          });
+
+          fetchedAgents[name] = {
+            icon: agent.displayIcon,
+            abilities: abs
+          };
+        });
+
+        setApiAgents(fetchedAgents);
+        setLoadingApi(false);
+      })
+      .catch((err) => {
+        console.error("Erro a carregar API do Valorant", err);
+        setLoadingApi(false);
+      });
+  }, []);
+
+  // Lista dinâmica de agentes ordenados alfabeticamente
+  const AGENTS = Object.keys(apiAgents).sort();
+
   useEffect(() => {
     const resize = () => {
       const wrap = mapWrapRef.current;
@@ -97,29 +151,25 @@ export default function StrategiesPage() {
     return () => window.removeEventListener("resize", resize);
   }, [mapId]);
 
-  // --- draw handlers ---
-  const onMouseDown = (e) => {
+  // --- DESENHO NO CANVAS ---
+  const onMouseDownCanvas = (e) => {
     if (!drawingMode || !canvasRef.current) return;
     isDrawing.current = true;
     const rect = canvasRef.current.getBoundingClientRect();
     last.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
   };
 
-  const onMouseMove = (e) => {
+  const onMouseMoveCanvas = (e) => {
     if (!drawingMode || !isDrawing.current || !canvasRef.current) return;
-
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext("2d");
-    const rect = canvas.getBoundingClientRect();
-
+    const ctx = canvasRef.current.getContext("2d");
+    const rect = canvasRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
-    ctx.strokeStyle = "#00ff88"; // igual ao teu HTML
+    ctx.strokeStyle = "#00ff88"; 
     ctx.lineWidth = 3;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
-
     ctx.beginPath();
     ctx.moveTo(last.current.x, last.current.y);
     ctx.lineTo(x, y);
@@ -128,68 +178,50 @@ export default function StrategiesPage() {
     last.current = { x, y };
   };
 
-  const onMouseUp = () => {
-    isDrawing.current = false;
-  };
+  const onMouseUpCanvas = () => { isDrawing.current = false; };
 
-  // --- add marker on click ---
-  const onMapClick = (e) => {
-    if (drawingMode) return;
-    if (!selectedAgent) return;
-    if (!mapWrapRef.current) return;
-
-    const rect = mapWrapRef.current.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * 100;
-    const y = ((e.clientY - rect.top) / rect.height) * 100;
-
-    setMarkers((prev) => [
-      ...prev,
-      {
-        id: Date.now() + Math.random(),
-        agent: selectedAgent,
-        ability: selectedAbility, // Grava a habilidade selecionada
-        team: teamSide,
-        step: activeStep,
-        x,
-        y,
-      },
-    ]);
-  };
-
-  // --- drag drop (opcional) ---
+  // --- DRAG & DROP PARA O MAPA ---
   const onDragOver = (e) => {
     if (drawingMode) return;
-    e.preventDefault();
+    e.preventDefault(); 
   };
 
   const onDrop = (e) => {
     if (drawingMode) return;
     e.preventDefault();
-    const data = e.dataTransfer.getData("text/plain");
-    if (!data || !mapWrapRef.current) return;
+    const dataStr = e.dataTransfer.getData("application/json");
+    if (!dataStr || !mapWrapRef.current) return;
 
-    let agentName = data;
-    let abilityType = "AGENT";
-
-    // Tenta ler se os dados arrastados são uma habilidade (JSON) ou apenas o nome do agente
     try {
-      const parsed = JSON.parse(data);
-      if (parsed.agent) {
-        agentName = parsed.agent;
-        abilityType = parsed.ability;
+      const data = JSON.parse(dataStr);
+      if (data.type === "NEW_AGENT" || data.type === "NEW_ABILITY") {
+        const rect = mapWrapRef.current.getBoundingClientRect();
+        const x = ((e.clientX - rect.left) / rect.width) * 100;
+        const y = ((e.clientY - rect.top) / rect.height) * 100;
+
+        setMarkers((prev) => [
+          ...prev,
+          {
+            id: Date.now() + Math.random(),
+            agent: data.agent,
+            ability: data.ability || "AGENT",
+            team: teamSide,
+            step: activeStep,
+            x,
+            y,
+            angle: 0
+          },
+        ]);
+        setFloatingMenu({ show: false });
       }
-    } catch (error) {
-      // Se der erro no parse, é porque arrastaram apenas o texto com o nome do agente
+    } catch (err) {
+      console.error("Erro no drop:", err);
     }
+  };
 
-    const rect = mapWrapRef.current.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * 100;
-    const y = ((e.clientY - rect.top) / rect.height) * 100;
-
-    setMarkers((prev) => [
-      ...prev,
-      { id: Date.now() + Math.random(), agent: agentName, ability: abilityType, team: teamSide, step: activeStep, x, y },
-    ]);
+  // --- AÇÕES DO MAPA ---
+  const onMapClick = () => {
+    if (floatingMenu.show) setFloatingMenu({ show: false, markerId: null, agent: null, x: 0, y: 0 });
   };
 
   const clearAll = () => {
@@ -198,14 +230,12 @@ export default function StrategiesPage() {
     if (c) c.getContext("2d").clearRect(0, 0, c.width, c.height);
   };
 
-  const clearStep = () => {
-    setMarkers((m) => m.filter((mk) => mk.step !== activeStep));
-  };
-
+  const clearStep = () => { setMarkers((m) => m.filter((mk) => mk.step !== activeStep)); };
   const filteredMarkers = useMemo(() => markers.filter((m) => m.step === activeStep), [markers, activeStep]);
 
-  // drag marker dentro do mapa
+  // --- INTERAÇÕES COM MARCADORES ---
   const startDragMarker = (id, e) => {
+    if (e.button !== 0) return;
     e.stopPropagation();
     const wrap = mapWrapRef.current;
     if (!wrap) return;
@@ -214,23 +244,12 @@ export default function StrategiesPage() {
     const marker = markers.find((m) => m.id === id);
     if (!marker) return;
 
-    const start = {
-      mx: e.clientX,
-      my: e.clientY,
-      x: marker.x,
-      y: marker.y,
-      w: rect.width,
-      h: rect.height,
-    };
+    const start = { mx: e.clientX, my: e.clientY, x: marker.x, y: marker.y, w: rect.width, h: rect.height };
 
     const onMove = (ev) => {
       const dx = ((ev.clientX - start.mx) / start.w) * 100;
       const dy = ((ev.clientY - start.my) / start.h) * 100;
-
-      setMarkers((prev) =>
-        prev.map((m) => (m.id === id ? { ...m, x: clamp(m.x + dx, 0, 100), y: clamp(m.y + dy, 0, 100) } : m))
-      );
-
+      setMarkers((prev) => prev.map((m) => (m.id === id ? { ...m, x: Math.max(0, Math.min(100, m.x + dx)), y: Math.max(0, Math.min(100, m.y + dy)) } : m)));
       start.mx = ev.clientX;
       start.my = ev.clientY;
     };
@@ -244,73 +263,125 @@ export default function StrategiesPage() {
     window.addEventListener("mouseup", onUp);
   };
 
+  const openMarkerMenu = (m, e) => {
+    e.stopPropagation();
+    if (drawingMode) return;
+    const wrap = mapWrapRef.current;
+    if (!wrap) return;
+    
+    const rect = wrap.getBoundingClientRect();
+    const pixelX = (m.x / 100) * rect.width + rect.left;
+    const pixelY = (m.y / 100) * rect.height + rect.top;
+
+    setFloatingMenu({
+      show: true,
+      markerId: m.id,
+      agent: m.agent,
+      x: pixelX + 28, 
+      y: pixelY,
+    });
+  };
+
+  const handleFooterAgentClick = (name, e) => {
+    e.stopPropagation();
+    const r = e.currentTarget.getBoundingClientRect();
+    setFloatingMenu({
+      show: true,
+      agent: name,
+      markerId: null,
+      x: r.left + r.width / 2,
+      y: r.top - 12
+    });
+  };
+
+  const addAbilityFromMapMenu = (ability) => {
+    if (!floatingMenu.markerId) return;
+
+    const parentMarker = markers.find(m => m.id === floatingMenu.markerId);
+    if (!parentMarker) return;
+
+    setMarkers((prev) => [
+      ...prev,
+      {
+        id: Date.now() + Math.random(),
+        agent: parentMarker.agent,
+        ability: ability,
+        team: parentMarker.team,
+        step: parentMarker.step,
+        x: parentMarker.x + 3, 
+        y: parentMarker.y + 3,
+        angle: 0
+      }
+    ]);
+
+    setFloatingMenu({ ...floatingMenu, show: false });
+  };
+
   const removeMarker = (id, e) => {
     e.stopPropagation();
     if (confirm("Remover do mapa?")) {
       setMarkers((prev) => prev.filter((m) => m.id !== id));
+      setFloatingMenu({ show: false });
     }
   };
 
-  // Ao clicar num agente na barra de baixo
-  const handleAgentClick = (name, el) => {
-    setSelectedAgent(name);
-    setSelectedAbility("AGENT"); // Volta a focar no agente por defeito
-    const r = el.getBoundingClientRect();
-    // Mostra o menu flutuante imediatamente acima do boneco clicado
-    setFloatingMenu({ show: true, agent: name, x: r.left + r.width / 2, y: r.top - 12 });
+  const handleMarkerWheel = (id, e) => {
+    e.stopPropagation();
+    e.preventDefault(); 
+    const delta = e.deltaY > 0 ? 15 : -15; 
+    setMarkers((prev) => prev.map((m) => (m.id === id ? { ...m, angle: (m.angle || 0) + delta } : m)));
   };
 
   return (
     <div style={styles.shell} onClick={() => setFloatingMenu({ ...floatingMenu, show: false })}>
       
-      {/* Menu Flutuante Interativo (Aparece ao clicar num agente) */}
-      {floatingMenu.show && floatingMenu.agent && (
+      {/* MENU FLUTUANTE DINÂMICO */}
+      {floatingMenu.show && floatingMenu.agent && apiAgents[floatingMenu.agent] && (
         <div
           style={{
             ...styles.floatingMenu,
             left: floatingMenu.x,
             top: floatingMenu.y,
-            transform: "translate(-50%, -100%)",
+            transform: floatingMenu.markerId ? "translate(10px, -50%)" : "translate(-50%, -100%)",
+            flexDirection: floatingMenu.markerId ? "column" : "row",
           }}
-          onClick={(e) => e.stopPropagation()} // Impede que o clique feche o menu imediatamente
+          onClick={(e) => e.stopPropagation()} 
         >
-          {/* Opção 1: O próprio boneco (Agente) */}
+          {/* Ícone do Agente */}
           <img
-            src={agentIconPng(floatingMenu.agent)}
+            src={apiAgents[floatingMenu.agent].icon}
             alt={floatingMenu.agent}
-            style={{
-              ...styles.floatingMenuImg,
-              outline: selectedAbility === "AGENT" ? "2px solid #00ff88" : "none"
-            }}
-            onClick={() => setSelectedAbility("AGENT")}
-            draggable
+            style={styles.floatingMenuImg}
+            draggable={!floatingMenu.markerId}
             onDragStart={(e) => {
-              e.dataTransfer.setData("text/plain", floatingMenu.agent);
+              if (!floatingMenu.markerId) {
+                e.dataTransfer.setData("application/json", JSON.stringify({ type: "NEW_AGENT", agent: floatingMenu.agent }));
+              }
             }}
+            onClick={() => floatingMenu.markerId && setFloatingMenu({ ...floatingMenu, show: false })}
           />
           
-          <div style={{ width: 1, background: "rgba(255,255,255,0.2)", margin: "0 4px" }} />
+          <div style={{ 
+            width: floatingMenu.markerId ? "100%" : 1, 
+            height: floatingMenu.markerId ? 1 : "100%", 
+            background: "rgba(255,255,255,0.2)", 
+            margin: floatingMenu.markerId ? "4px 0" : "0 4px" 
+          }} />
 
-          {/* Opções 2-5: As habilidades do Agente */}
-          {(agentInfo[floatingMenu.agent]?.abilities || ["C", "Q", "E", "X"]).map((ab) => (
+          {/* Habilidades Dinâmicas da API */}
+          {Object.entries(apiAgents[floatingMenu.agent].abilities).map(([abKey, iconUrl]) => (
             <img
-              key={ab}
-              src={abilityPng(floatingMenu.agent, ab)}
-              alt={`${floatingMenu.agent} ${ab}`}
-              style={{
-                ...styles.floatingMenuImg,
-                outline: selectedAbility === ab ? "2px solid #00b3ff" : "none"
-              }}
-              onClick={() => setSelectedAbility(ab)}
-              draggable
+              key={abKey}
+              src={iconUrl}
+              alt={`${floatingMenu.agent} ${abKey}`}
+              style={styles.floatingMenuImg}
+              draggable={!floatingMenu.markerId} 
               onDragStart={(e) => {
-                // Passa um JSON para o drop saber que agente e habilidade foram arrastados
-                e.dataTransfer.setData("text/plain", JSON.stringify({ agent: floatingMenu.agent, ability: ab }));
+                if (!floatingMenu.markerId) {
+                  e.dataTransfer.setData("application/json", JSON.stringify({ type: "NEW_ABILITY", agent: floatingMenu.agent, ability: abKey }));
+                }
               }}
-              onError={(e) => {
-                e.currentTarget.onerror = null;
-                e.currentTarget.src = agentIconPng(floatingMenu.agent);
-              }}
+              onClick={() => floatingMenu.markerId && addAbilityFromMapMenu(abKey)} 
             />
           ))}
         </div>
@@ -320,415 +391,170 @@ export default function StrategiesPage() {
       <aside style={styles.leftPanel} onClick={(e) => e.stopPropagation()}>
         <div style={styles.leftHeader}>
           <div style={styles.leftTitle}>ESTRATÉGIAS</div>
-          <div style={styles.leftSub}>Sequência / Ferramentas / Agentes</div>
+          <div style={styles.leftSub}>Modo Drag & Drop c/ Valorant API</div>
         </div>
 
-        {/* Sequência */}
         <div style={styles.section}>
           <h3 style={styles.h3}>Sequência</h3>
           <div style={styles.buttonsRow}>
             {[1, 2, 3, 4, 5].map((n) => (
-              <button
-                key={n}
-                style={{ ...styles.smallBtn, ...(activeStep === n ? styles.smallBtnActive : null) }}
-                onClick={() => setActiveStep(n)}
-                type="button"
-              >
-                {n}
-              </button>
+              <button key={n} style={{ ...styles.smallBtn, ...(activeStep === n ? styles.smallBtnActive : null) }} onClick={() => setActiveStep(n)} type="button">{n}</button>
             ))}
           </div>
         </div>
 
-        {/* Equipa */}
         <div style={styles.section}>
-          <h3 style={styles.h3}>Equipa</h3>
+          <h3 style={styles.h3}>Equipa Cor</h3>
           <div style={styles.buttonsRow}>
-            <button
-              type="button"
-              style={{ ...styles.midBtn, ...(teamSide === "ally" ? styles.midBtnActive : null) }}
-              onClick={() => setTeamSide("ally")}
-            >
-              👥 Aliados
-            </button>
-            <button
-              type="button"
-              style={{ ...styles.midBtn, ...(teamSide === "enemy" ? styles.midBtnActive : null) }}
-              onClick={() => setTeamSide("enemy")}
-            >
-              ⚔️ Inimigos
-            </button>
+            <button type="button" style={{ ...styles.midBtn, ...(teamSide === "ally" ? styles.midBtnActive : null) }} onClick={() => setTeamSide("ally")}>👥 Aliados</button>
+            <button type="button" style={{ ...styles.midBtn, ...(teamSide === "enemy" ? styles.midBtnActive : null) }} onClick={() => setTeamSide("enemy")}>⚔️ Inimigos</button>
           </div>
         </div>
 
-        {/* Ferramentas */}
         <div style={styles.section}>
           <h3 style={styles.h3}>Ferramentas</h3>
           <div style={styles.buttonsRowWrap}>
-            <button
-              type="button"
-              style={{ ...styles.midBtn, ...(drawingMode ? styles.midBtnActive : null) }}
-              onClick={() => setDrawingMode(true)}
-            >
-              ✏️ Desenhar
-            </button>
-            <button type="button" style={styles.midBtn} onClick={() => alert("Círculo (podes pedir e eu adiciono)")} >
-              ◯ Círculo
-            </button>
-            <button type="button" style={styles.midBtn} onClick={() => alert("Quadrado (podes pedir e eu adiciono)")} >
-              ⬛ Quadrado
-            </button>
-            <button type="button" style={styles.midBtn} onClick={() => alert("Estrela (podes pedir e eu adiciono)")} >
-              ★ Estrela
-            </button>
-
-            <button
-              type="button"
-              style={{ ...styles.midBtn, ...(!drawingMode ? styles.midBtnActive : null) }}
-              onClick={() => setDrawingMode(false)}
-              title="Voltar a colocar agentes"
-            >
-              🖱️ Cursor
-            </button>
+            <button type="button" style={{ ...styles.midBtn, ...(drawingMode ? styles.midBtnActive : null) }} onClick={() => setDrawingMode(true)}>✏️ Desenhar</button>
+            <button type="button" style={{ ...styles.midBtn, ...(!drawingMode ? styles.midBtnActive : null) }} onClick={() => setDrawingMode(false)}>🖱️ Cursor</button>
           </div>
         </div>
 
-        {/* Agentes */}
         <div style={styles.section}>
-          <h3 style={styles.h3}>Agentes</h3>
-          <div style={styles.buttonsRow}>
-            <button type="button" style={styles.midBtn} onClick={() => {}}>
-              Todos
-            </button>
-            <button type="button" style={styles.midBtn} onClick={() => {}}>
-              No mapa
-            </button>
-          </div>
-          <div style={{ marginTop: 10, color: "#9aa4b2", fontSize: 12 }}>
-            Seleciona um agente na barra de baixo e clica no mapa.
-          </div>
+          <h3 style={styles.h3}>💡 Dicas Pro</h3>
+          <ul style={{ margin: 0, paddingLeft: 16, fontSize: 12, color: "#9aa4b2", lineHeight: 1.6 }}>
+            <li><b>Arrasta</b> da barra inferior para o mapa.</li>
+            <li><b>Clica na barra inferior</b> para abrir as habilidades.</li>
+            <li><b>Clica num agente no mapa</b> e escolhe o poder para o adicionar ao lado.</li>
+            <li><b>Scroll</b> em cima de paredes para as rodar.</li>
+          </ul>
         </div>
 
-        {/* Ações */}
         <div style={styles.section}>
           <h3 style={styles.h3}>Ações</h3>
           <div style={styles.buttonsRowWrap}>
-            <button type="button" style={styles.actionBtn} onClick={() => alert("Guardado ✅")}>
-              💾 Guardar
-            </button>
-            <button type="button" style={styles.actionBtnDanger} onClick={() => (confirm("Limpar tudo?") ? clearAll() : null)}>
-              🗑️ Limpar
-            </button>
-            <button type="button" style={styles.actionBtn} onClick={clearStep}>
-              🧹 Limpar Step {activeStep}
-            </button>
+            <button type="button" style={styles.actionBtnDanger} onClick={() => (confirm("Limpar tudo?") ? clearAll() : null)}>🗑️ Limpar</button>
+            <button type="button" style={styles.actionBtn} onClick={clearStep}>🧹 Limpar Step {activeStep}</button>
           </div>
         </div>
       </aside>
 
       {/* CENTER */}
       <section style={styles.center} onClick={(e) => e.stopPropagation()}>
-        {/* selector pequeno no canto superior direito */}
-        <select
-          value={mapId}
-          onChange={(e) => {
-            setMapId(e.target.value);
-            const c = canvasRef.current;
-            if (c) c.getContext("2d").clearRect(0, 0, c.width, c.height);
-          }}
-          style={styles.mapSelector}
-        >
-          {MAPS.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.label}
-            </option>
-          ))}
+        <select value={mapId} onChange={(e) => { setMapId(e.target.value); clearAll(); }} style={styles.mapSelector}>
+          {MAPS.map((m) => (<option key={m.id} value={m.id}>{m.label}</option>))}
         </select>
 
-        {/* mapa container */}
-        <div
-          ref={mapWrapRef}
-          style={styles.mapContainer}
-          onClick={onMapClick}
-          onDragOver={onDragOver}
-          onDrop={onDrop}
-        >
+        {/* MAPA CONTAINER */}
+        <div ref={mapWrapRef} style={styles.mapContainer} onClick={onMapClick} onDragOver={onDragOver} onDrop={onDrop}>
           <img src={mapSrc(mapId)} alt={mapId} style={styles.mapImg} draggable={false} />
 
-          <canvas
-            ref={canvasRef}
-            style={{ ...styles.canvas, cursor: drawingMode ? "crosshair" : "default" }}
-            onMouseDown={onMouseDown}
-            onMouseMove={onMouseMove}
-            onMouseUp={onMouseUp}
-            onMouseLeave={onMouseUp}
-          />
+          <canvas ref={canvasRef} style={{ ...styles.canvas, cursor: drawingMode ? "crosshair" : "default" }} onMouseDown={onMouseDownCanvas} onMouseMove={onMouseMoveCanvas} onMouseUp={onMouseUpCanvas} onMouseLeave={onMouseUpCanvas} />
 
-          {/* markers (Agentes e Habilidades) */}
+          {/* RENDERIZAR MARCADORES */}
           {filteredMarkers.map((m) => {
             const isAbility = m.ability && m.ability !== "AGENT";
+            const shape = getSpecialShape(m.agent, m.ability);
             
+            // Vai buscar à API o ícone certo (Boneco ou Poder)
+            const iconUrl = isAbility 
+              ? apiAgents[m.agent]?.abilities[m.ability] || apiAgents[m.agent]?.icon 
+              : apiAgents[m.agent]?.icon;
+
             return (
-              <div
-                key={m.id}
-                style={{
-                  ...styles.marker,
-                  left: `${m.x}%`,
-                  top: `${m.y}%`,
-                  borderColor: m.team === "ally" ? "#00b3ff" : "#ff4655",
-                }}
-                onMouseDown={(e) => startDragMarker(m.id, e)}
-                onDoubleClick={(e) => removeMarker(m.id, e)}
-                title={`${m.agent} ${isAbility ? m.ability : ""} (${m.team}) — step ${m.step}`}
-              >
-                <img
-                  src={isAbility ? abilityPng(m.agent, m.ability) : agentIconPng(m.agent)}
-                  alt={isAbility ? m.ability : m.agent}
-                  style={isAbility ? { ...styles.markerImg, objectFit: "contain", padding: 4, background: "rgba(0,0,0,0.6)" } : styles.markerImg}
-                  onError={(e) => {
-                    e.currentTarget.onerror = null;
-                    e.currentTarget.src = agentIconWebp(m.agent);
-                  }}
-                  draggable={false}
-                />
+              <div key={m.id} style={{ position: "absolute", left: `${m.x}%`, top: `${m.y}%`, transform: "translate(-50%, -50%)", zIndex: isAbility ? 5 : 10 }}>
+                {shape && (
+                  <div style={{
+                      position: "absolute", top: "50%", left: "50%",
+                      transform: `translate(-50%, -50%) rotate(${m.angle || 0}deg)`,
+                      width: shape.width || shape.size, height: shape.height || shape.size,
+                      borderRadius: shape.type === "wall" ? 4 : "50%",
+                      background: shape.color, border: shape.border || "none",
+                      pointerEvents: "none", 
+                    }}
+                  />
+                )}
+
+                <div
+                  onMouseDown={(e) => startDragMarker(m.id, e)}
+                  onClick={(e) => openMarkerMenu(m, e)}
+                  onDoubleClick={(e) => removeMarker(m.id, e)}
+                  onWheel={(e) => handleMarkerWheel(m.id, e)}
+                  style={{ ...styles.marker, borderColor: m.team === "ally" ? "#00b3ff" : "#ff4655", cursor: drawingMode ? "default" : "grab" }}
+                >
+                  <img
+                    src={iconUrl}
+                    alt={isAbility ? m.ability : m.agent}
+                    style={isAbility ? styles.abilityImg : styles.markerImg}
+                    draggable={false}
+                  />
+                </div>
               </div>
             );
           })}
         </div>
       </section>
 
-      {/* FOOTER: agents bar */}
+      {/* FOOTER */}
       <footer style={styles.footer} onClick={(e) => e.stopPropagation()}>
-        <div style={styles.agentsContainer}>
-          {AGENTS.map((name) => (
-            <img
-              key={name}
-              src={agentIconPng(name)}
-              alt={name}
-              draggable
-              onDragStart={(e) => {
-                e.dataTransfer.setData("text/plain", name);
-                e.dataTransfer.effectAllowed = "copy";
-              }}
-              // Agora usamos o click para mostrar a barra interativa!
-              onClick={(e) => handleAgentClick(name, e.currentTarget)}
-              style={{
-                ...styles.agentIcon,
-                outline: selectedAgent === name ? "2px solid #00ff88" : "2px solid transparent",
-                transform: selectedAgent === name ? "scale(1.08)" : "scale(1)",
-              }}
-              onError={(e) => {
-                e.currentTarget.onerror = null;
-                e.currentTarget.src = agentIconWebp(name);
-              }}
-            />
-          ))}
-        </div>
+        {loadingApi ? (
+          <div style={{ padding: 10, color: "#00ff88", fontWeight: "bold" }}>A carregar Agentes da Riot...</div>
+        ) : (
+          <div style={styles.agentsContainer}>
+            {AGENTS.map((name) => (
+              <img
+                key={name}
+                src={apiAgents[name].icon}
+                alt={name}
+                title={name}
+                draggable
+                onDragStart={(e) => {
+                  e.dataTransfer.setData("application/json", JSON.stringify({ type: "NEW_AGENT", agent: name }));
+                }}
+                onClick={(e) => handleFooterAgentClick(name, e)}
+                style={styles.agentIcon}
+              />
+            ))}
+          </div>
+        )}
       </footer>
     </div>
   );
 }
 
-function clamp(v, min, max) {
-  return Math.max(min, Math.min(max, v));
-}
-
 const styles = {
-  shell: {
-    height: "100%",
-    width: "100%",
-    display: "grid",
-    gridTemplateColumns: "320px 1fr",
-    gridTemplateRows: "1fr 90px",
-    background: "#0b0f14",
-    color: "#fff",
-    position: "relative",
-  },
-  leftPanel: {
-    gridRow: "1 / span 2",
-    background: "rgba(10,14,20,0.95)",
-    borderRight: "1px solid rgba(255,255,255,0.08)",
-    padding: 18,
-    overflow: "auto",
-  },
-  leftHeader: {
-    paddingBottom: 14,
-    marginBottom: 14,
-    borderBottom: "1px solid rgba(255,255,255,0.08)",
-  },
+  shell: { height: "100%", width: "100%", display: "grid", gridTemplateColumns: "320px 1fr", gridTemplateRows: "1fr 90px", background: "#0b0f14", color: "#fff", position: "relative" },
+  leftPanel: { gridRow: "1 / span 2", background: "rgba(10,14,20,0.95)", borderRight: "1px solid rgba(255,255,255,0.08)", padding: 18, overflow: "auto" },
+  leftHeader: { paddingBottom: 14, marginBottom: 14, borderBottom: "1px solid rgba(255,255,255,0.08)" },
   leftTitle: { fontWeight: 900, letterSpacing: 1.2, fontSize: 16 },
-  leftSub: { marginTop: 4, color: "#9aa4b2", fontSize: 12 },
+  leftSub: { marginTop: 4, color: "#00ff88", fontSize: 12, fontWeight: "bold" },
 
-  section: {
-    background: "rgba(255,255,255,0.03)",
-    border: "1px solid rgba(255,255,255,0.06)",
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 12,
-  },
+  section: { background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: 14, marginBottom: 12 },
   h3: { margin: 0, marginBottom: 10, fontSize: 13, letterSpacing: 0.6 },
 
   buttonsRow: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 },
   buttonsRowWrap: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 },
 
-  smallBtn: {
-    height: 36,
-    borderRadius: 10,
-    border: "1px solid rgba(255,255,255,0.12)",
-    background: "rgba(0,0,0,0.25)",
-    color: "#e5e7eb",
-    fontWeight: 800,
-    cursor: "pointer",
-  },
-  smallBtnActive: {
-    background: "rgba(0,255,136,0.18)",
-    borderColor: "rgba(0,255,136,0.45)",
-    color: "#00ff88",
-  },
+  smallBtn: { height: 36, borderRadius: 10, border: "1px solid rgba(255,255,255,0.12)", background: "rgba(0,0,0,0.25)", color: "#e5e7eb", fontWeight: 800, cursor: "pointer" },
+  smallBtnActive: { background: "rgba(0,255,136,0.18)", borderColor: "rgba(0,255,136,0.45)", color: "#00ff88" },
+  midBtn: { height: 38, borderRadius: 10, border: "1px solid rgba(255,255,255,0.12)", background: "rgba(0,0,0,0.25)", color: "#e5e7eb", fontWeight: 700, cursor: "pointer" },
+  midBtnActive: { background: "rgba(0,179,255,0.14)", borderColor: "rgba(0,179,255,0.45)", color: "#00b3ff" },
+  actionBtn: { height: 40, borderRadius: 10, border: "1px solid rgba(255,255,255,0.12)", background: "rgba(0,0,0,0.30)", color: "#fff", fontWeight: 800, cursor: "pointer" },
+  actionBtnDanger: { height: 40, borderRadius: 10, border: "1px solid rgba(255,70,85,0.45)", background: "rgba(255,70,85,0.12)", color: "#ff4655", fontWeight: 900, cursor: "pointer" },
 
-  midBtn: {
-    height: 38,
-    borderRadius: 10,
-    border: "1px solid rgba(255,255,255,0.12)",
-    background: "rgba(0,0,0,0.25)",
-    color: "#e5e7eb",
-    fontWeight: 700,
-    cursor: "pointer",
-  },
-  midBtnActive: {
-    background: "rgba(0,179,255,0.14)",
-    borderColor: "rgba(0,179,255,0.45)",
-    color: "#00b3ff",
-  },
+  center: { gridColumn: 2, gridRow: 1, position: "relative", padding: 16 },
+  mapSelector: { position: "absolute", top: 16, right: 16, zIndex: 10, background: "rgba(0,0,0,0.65)", color: "#fff", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, padding: "10px 12px", fontWeight: 700, outline: "none" },
+  mapContainer: { position: "relative", height: "100%", width: "100%", background: "#05070b", borderRadius: 14, overflow: "hidden", border: "1px solid rgba(255,255,255,0.08)" },
+  mapImg: { position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain", padding: "20px", pointerEvents: "none", userSelect: "none" },
+  canvas: { position: "absolute", inset: 0, width: "100%", height: "100%" },
 
-  actionBtn: {
-    height: 40,
-    borderRadius: 10,
-    border: "1px solid rgba(255,255,255,0.12)",
-    background: "rgba(0,0,0,0.30)",
-    color: "#fff",
-    fontWeight: 800,
-    cursor: "pointer",
-  },
-  actionBtnDanger: {
-    height: 40,
-    borderRadius: 10,
-    border: "1px solid rgba(255,70,85,0.45)",
-    background: "rgba(255,70,85,0.12)",
-    color: "#ff4655",
-    fontWeight: 900,
-    cursor: "pointer",
-  },
+  marker: { position: "relative", width: 38, height: 38, borderRadius: "50%", border: "2px solid", background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 6px 15px rgba(0,0,0,0.4)", transition: "transform 0.1s ease" },
+  markerImg: { width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" },
+  abilityImg: { width: "100%", height: "100%", objectFit: "contain", padding: 4, borderRadius: "50%" },
 
-  center: {
-    gridColumn: 2,
-    gridRow: 1,
-    position: "relative",
-    padding: 16,
-  },
-  mapSelector: {
-    position: "absolute",
-    top: 16,
-    right: 16,
-    zIndex: 10,
-    background: "rgba(0,0,0,0.65)",
-    color: "#fff",
-    border: "1px solid rgba(255,255,255,0.12)",
-    borderRadius: 10,
-    padding: "10px 12px",
-    fontWeight: 700,
-    outline: "none",
-  },
-  mapContainer: {
-    position: "relative",
-    height: "100%",
-    width: "100%",
-    background: "#05070b",
-    borderRadius: 14,
-    overflow: "hidden",
-    border: "1px solid rgba(255,255,255,0.08)",
-  },
-  mapImg: {
-    position: "absolute",
-    inset: 0,
-    width: "100%",
-    height: "100%",
-    objectFit: "contain", // Mantém a porção certa e não corta
-    padding: "20px",      // Adicionado para o mapa respirar
-    pointerEvents: "none",
-    userSelect: "none",
-  },
-  canvas: {
-    position: "absolute",
-    inset: 0,
-    width: "100%",
-    height: "100%",
-  },
+  footer: { gridColumn: 2, gridRow: 2, borderTop: "1px solid rgba(255,255,255,0.08)", background: "rgba(10,14,20,0.95)", display: "flex", alignItems: "center", padding: "10px 16px" },
+  agentsContainer: { display: "flex", gap: 10, overflowX: "auto", width: "100%", paddingBottom: 6 },
+  agentIcon: { width: 54, height: 54, borderRadius: 12, cursor: "grab", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.10)", padding: 4, transition: "transform 0.12s ease" },
 
-  marker: {
-    position: "absolute",
-    transform: "translate(-50%, -50%)",
-    width: 46,
-    height: 46,
-    borderRadius: 999,
-    border: "3px solid #00b3ff",
-    background: "rgba(0,0,0,0.35)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    cursor: "grab",
-    boxShadow: "0 10px 20px rgba(0,0,0,0.35)",
-  },
-  markerImg: { width: "100%", height: "100%", objectFit: "cover", borderRadius: 999 },
-
-  footer: {
-    gridColumn: 2,
-    gridRow: 2,
-    borderTop: "1px solid rgba(255,255,255,0.08)",
-    background: "rgba(10,14,20,0.95)",
-    display: "flex",
-    alignItems: "center",
-    padding: "10px 16px",
-  },
-  agentsContainer: {
-    display: "flex",
-    gap: 10,
-    overflowX: "auto",
-    width: "100%",
-    paddingBottom: 6,
-  },
-  agentIcon: {
-    width: 54,
-    height: 54,
-    borderRadius: 12,
-    cursor: "pointer",
-    background: "rgba(255,255,255,0.04)",
-    border: "1px solid rgba(255,255,255,0.10)",
-    padding: 4,
-    transition: "transform 0.12s ease",
-  },
-
-  // Novo design para a barra flutuante interativa
-  floatingMenu: {
-    position: "fixed",
-    zIndex: 9999,
-    display: "flex",
-    gap: 8,
-    padding: "10px 12px",
-    borderRadius: 12,
-    background: "rgba(15, 20, 30, 0.95)",
-    border: "1px solid rgba(255,255,255,0.2)",
-    boxShadow: "0 12px 30px rgba(0,0,0,0.6)",
-    pointerEvents: "auto", // Permite clicar e arrastar
-  },
-  floatingMenuImg: {
-    width: 38,
-    height: 38,
-    objectFit: "contain",
-    borderRadius: 8,
-    background: "rgba(255,255,255,0.05)",
-    cursor: "pointer",
-    padding: 4,
-    transition: "all 0.15s ease",
-  },
+  floatingMenu: { position: "fixed", zIndex: 9999, display: "flex", gap: 8, padding: "10px", borderRadius: 12, background: "rgba(15, 20, 30, 0.95)", border: "1px solid rgba(255,255,255,0.2)", boxShadow: "0 12px 30px rgba(0,0,0,0.6)" },
+  floatingMenuImg: { width: 40, height: 40, objectFit: "contain", borderRadius: 8, background: "rgba(255,255,255,0.05)", cursor: "pointer", padding: 4, transition: "all 0.1s ease" },
 };
