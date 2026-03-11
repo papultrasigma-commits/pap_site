@@ -64,7 +64,7 @@ export default function Scrims({ myTeam }) {
       
       setIsModalOpen(false);
       setFormData({ date: "", time: "", format: "BO1", rank_range: "" });
-      fetchFeedScrims(); // Recarrega o feed para mostrar o teu novo anúncio
+      fetchFeedScrims();
       alert("Anúncio de Scrim publicado no Mural Público!");
     } catch (err) {
       console.error("Erro ao criar scrim:", err);
@@ -89,7 +89,7 @@ export default function Scrims({ myTeam }) {
         if (error.code === '23505') return alert("Já enviaste um desafio para este Scrim!");
         throw error;
       }
-      alert("Desafio enviado! O capitão adversário receberá uma notificação.");
+      alert("Desafio enviado! O capitão adversário receberá uma notificação nas suas Negociações.");
     } catch (err) {
       console.error("Erro ao enviar pedido:", err);
     }
@@ -125,7 +125,6 @@ export default function Scrims({ myTeam }) {
         )}
       </div>
 
-      {/* AVISOS */}
       {!myTeam && (
         <div className="bg-amber-500/10 border border-amber-500/20 text-amber-500 p-4 rounded-xl flex items-center gap-3 text-sm font-medium">
           <Shield size={20} /> Precisas de te juntar ou criar uma equipa para participares em Scrims.

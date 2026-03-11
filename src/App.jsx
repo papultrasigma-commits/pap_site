@@ -15,11 +15,12 @@ import HonorPage from "./pages/Honor";
 import ProfilePage from "./pages/Profile";
 import SettingsPage from "./pages/Settings";
 import NotificationsPage from "./pages/Notifications";
-import ChatPage from "./pages/Chat"; // <-- NOVA IMPORTAÇÃO DO CHAT
+import ChatPage from "./pages/Chat";
+import NegotiationsPage from "./pages/Negotiations"; 
 
 import {
   LayoutDashboard, Users, Search, Swords, Map, Trophy, 
-  Award, User, Settings, LogOut, Shield, Menu, X, Bell, MessageSquare // <-- IMPORTADO O MESSAGESQUARE AQUI
+  Award, User, Settings, LogOut, Shield, Menu, X, Bell, MessageSquare, Handshake
 } from "lucide-react";
 
 const SidebarItem = ({ icon, label, active = false, badge = null, onClick, color }) => (
@@ -55,6 +56,9 @@ export default function App() {
   const [nextTraining, setNextTraining] = useState(null);
   const [riotAccount, setRiotAccount] = useState(null); 
   const [invitesCount, setInvitesCount] = useState(0);
+  
+  // Contador de Notificações de Chat (Negociações)
+  const [unreadNegotiations, setUnreadNegotiations] = useState(0);
 
   const resetSessionUi = () => {
     setUserName(null);
@@ -64,6 +68,7 @@ export default function App() {
     setNextTraining(null);
     setRiotAccount(null); 
     setInvitesCount(0);
+    setUnreadNegotiations(0);
   };
 
   const loadUserName = async () => {
@@ -128,7 +133,6 @@ export default function App() {
       const uid = userRes?.user?.id;
       if (!uid) { setMyTeam(null); return; }
 
-      // 1. CARREGAR A TUA EQUIPA E CARGO
       const { data: member } = await supabase.from("team_members").select("team_id, role").eq("user_id", uid).maybeSingle();
       const teamId = member?.team_id;
       const isCaptainOrVice = member?.role === 'owner' || member?.role === 'vice';
@@ -146,15 +150,15 @@ export default function App() {
         setMyTeam(null);
       }
 
-      // 2. CONTAR CONVITES DE EQUIPA
       const { count: teamInvCount } = await supabase
         .from("team_invites")
         .select("*", { count: 'exact', head: true })
         .eq("user_id", uid)
         .eq("status", "pending");
 
-      // 3. CONTAR PEDIDOS DE SCRIMS (Só se fores líder/vice de uma equipa)
       let scrimsReqCount = 0;
+      let unreadChatsCount = 0; 
+
       if (teamId && isCaptainOrVice) {
         const { data: pendingReqs } = await supabase
           .from('scrim_requests')
@@ -162,9 +166,24 @@ export default function App() {
           .eq('status', 'pending')
           .eq('scrims.team_id', teamId);
         scrimsReqCount = pendingReqs?.length || 0;
+
+        const { data: reqsAsRequester } = await supabase.from('scrim_requests').select('id').eq('requesting_team_id', teamId);
+        const { data: reqsAsOwner } = await supabase.from('scrim_requests').select('id, scrims!inner(team_id)').eq('scrims.team_id', teamId);
+        const allReqIds = [...(reqsAsRequester?.map(r=>r.id) || []), ...(reqsAsOwner?.map(r=>r.id) || [])];
+
+        if (allReqIds.length > 0) {
+          const { count } = await supabase
+            .from('scrim_chat_messages')
+            .select('*', { count: 'exact', head: true })
+            .in('scrim_request_id', allReqIds)
+            .neq('user_id', uid) 
+            .eq('is_read', false); 
+          unreadChatsCount = count || 0;
+        }
       }
         
       setInvitesCount((teamInvCount || 0) + scrimsReqCount);
+      setUnreadNegotiations(unreadChatsCount);
 
     } catch (error) {
       console.error("Erro a carregar equipa/convites:", error);
@@ -197,7 +216,21 @@ export default function App() {
     };
     sync();
     return () => { mounted = false; };
-  }, [teamRefreshKey, location.pathname]);
+  }, [teamRefreshKey]); 
+
+  // Listener em Real-time
+  useEffect(() => {
+    if (!myTeam) return;
+    const channel = supabase.channel('global-chat-notifs')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'scrim_chat_messages' }, () => {
+        loadMyTeamAndInvites();
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'scrim_chat_messages' }, () => {
+        loadMyTeamAndInvites();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [myTeam]);
 
   useEffect(() => {
     if (!teamLoading && myTeam && (location.pathname === "/create-team" || location.pathname === "/find-team")) {
@@ -216,6 +249,7 @@ export default function App() {
       "/find-team": "PROCURAR EQUIPA",
       "/create-team": "CRIAR EQUIPA",
       "/scrims": "PROCURAR SCRIMS",
+      "/negotiations": "NEGOCIAÇÕES", 
       "/trainings": "TREINOS",
       "/strategies": "ESTRATÉGIAS",
       "/tournaments": "TORNEIOS",
@@ -223,13 +257,12 @@ export default function App() {
       "/profile": "PERFIL",
       "/settings": "DEFINIÇÕES",
       "/notifications": "NOTIFICAÇÕES",
-      "/chat": "CHAT DA EQUIPA", // <-- ADICIONADO AO MAPA
+      "/chat": "CHAT DA EQUIPA",
     };
     return map[location.pathname] || "DASHBOARD";
   }, [location.pathname]);
 
   const isStrategies = location.pathname === "/strategies";
-  // O chat também não precisa de margens nos cantos para ficar mais "App like"
   const isChat = location.pathname === "/chat"; 
 
   return (
@@ -257,7 +290,6 @@ export default function App() {
           
           <SidebarItem icon={<Users size={20} />} label="Minha Equipa" active={location.pathname === "/team"} onClick={() => navigate("/team")} />
           
-          {/* NOVA ABA DO CHAT: SÓ APARECE SE TIVERES EQUIPA */}
           {!teamLoading && myTeam && (
             <SidebarItem icon={<MessageSquare size={20} />} label="Chat da Equipa" active={location.pathname === "/chat"} onClick={() => navigate("/chat")} />
           )}
@@ -266,6 +298,11 @@ export default function App() {
             <SidebarItem icon={<Search size={20} />} label="Procurar Equipa" active={location.pathname === "/find-team"} onClick={() => navigate("/find-team")} />
           )}
           <SidebarItem icon={<Search size={20} />} label="Procurar Scrims" active={location.pathname === "/scrims"} onClick={() => navigate("/scrims")} />
+          
+          {/* BOTÃO COM O NOTIFICADOR VERMELHO */}
+          {!teamLoading && myTeam && (
+            <SidebarItem icon={<Handshake size={20} />} label="Negociações" active={location.pathname === "/negotiations"} onClick={() => navigate("/negotiations")} badge={unreadNegotiations > 0 ? unreadNegotiations : null} />
+          )}
 
           <div className="px-4 mt-8 mb-2 text-[10px] font-bold text-gray-600 uppercase tracking-widest">Gestão</div>
           <SidebarItem icon={<Swords size={20} />} label="Treinos" active={location.pathname === "/trainings"} onClick={() => navigate("/trainings")} />
@@ -308,9 +345,10 @@ export default function App() {
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<DashboardPage myTeam={myTeam} teamLoading={teamLoading} riotAccount={riotAccount} nextTraining={nextTraining} />} />
             <Route path="/notifications" element={<NotificationsPage onTeamJoined={() => { setTeamRefreshKey((k) => k + 1); setInvitesCount(0); }} />} />
-            
-            {/* NOVA ROTA DO CHAT AQUI */}
             <Route path="/chat" element={<ChatPage myTeam={myTeam} userName={displayName} />} />
+            
+            {/* === ROTA DE NEGOCIAÇÕES === */}
+            <Route path="/negotiations" element={<NegotiationsPage myTeam={myTeam} setGlobalUnread={setUnreadNegotiations} />} />
 
             <Route path="/team" element={<TeamPage refreshKey={teamRefreshKey} onGoFindTeam={() => navigate("/find-team")} onGoCreateTeam={() => navigate("/create-team")} riotAccount={riotAccount} userName={userName} />} />
             <Route path="/create-team" element={<CreateTeamPage existingTeam={myTeam} onCancel={() => navigate("/dashboard")} goFindTeam={() => navigate("/find-team")} onCreated={async () => { await loadMyTeamAndInvites(); setTeamRefreshKey((k) => k + 1); navigate("/team"); }} />} />
