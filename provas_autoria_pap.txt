@@ -1,0 +1,280 @@
+COMO PROVAR QUE O PROJETO FOI FEITO POR MIM
+
+Projeto: Valorant Team Manager / PAP
+Autor: Francisco Daniel Rebel
+
+
+1. HISTÓRICO DO GITHUB
+
+Uma das provas mais fortes é mostrar o repositório no GitHub, principalmente a aba "Commits".
+
+O histórico de commits mostra:
+- Datas das alterações
+- Horas das alterações
+- Ficheiros modificados
+- Evolução do projeto
+- Diferenças entre versões do código
+
+Na apresentação, posso abrir commits específicos e mostrar alterações feitas em ficheiros como:
+- src/App.jsx
+- src/pages/Profile.jsx
+- src/pages/Settings.jsx
+- src/pages/Dashboard.jsx
+- src/pages/Team.jsx
+
+Frase que posso dizer:
+"Aqui está o histórico do desenvolvimento. Dá para ver os commits, as datas, as alterações feitas em cada ficheiro e a evolução do projeto."
+
+
+2. DEMONSTRAÇÃO AO VIVO
+
+Na apresentação, posso correr o projeto localmente no meu computador.
+
+Comandos:
+npm install
+npm run dev
+
+Depois posso abrir o site localmente e demonstrar:
+- Login
+- Dashboard
+- Perfil
+- Definições
+- Vincular conta Riot/Valorant
+- Rank e estatísticas
+- Feed
+- Equipas
+- Convites
+- Sistema LFT
+- Sistema de denúncias/moderação
+
+Isto prova que sei correr, usar e explicar o projeto.
+
+
+3. EXPLICAR PARTES IMPORTANTES DO CÓDIGO
+
+Posso escolher algumas partes mais técnicas e explicar como funcionam.
+
+Exemplos:
+- Autenticação com Supabase
+- Vincular conta Riot/Valorant com a HenrikDev API
+- Guardar dados do utilizador na tabela profiles
+- Mostrar rank e estatísticas no perfil
+- Sistema de equipas
+- Sistema de convites
+- Feed de publicações
+- Sistema de denúncias
+
+Exemplo de explicação:
+"Quando o utilizador mete o Riot ID e a tag, faço um pedido à HenrikDev API. Se a conta existir, guardo os dados na tabela profiles do Supabase, nas colunas riot_account e riot_puuid. Depois o perfil usa esses dados para buscar o rank e as últimas partidas."
+
+
+4. SUPABASE COMO PROVA
+
+Posso mostrar o Supabase aberto, com as tabelas usadas no projeto.
+
+Tabelas importantes:
+- profiles
+- teams
+- team_members
+- team_invites
+- feed_posts
+- feed_comments
+- feed_likes
+- user_follows
+- reports
+- scrims
+- scrim_requests
+- team_requests
+
+Também posso demonstrar que os dados mudam em tempo real:
+- Criar uma publicação no feed
+- Mostrar a nova linha na tabela feed_posts
+- Vincular uma conta Valorant
+- Mostrar os dados guardados na tabela profiles
+- Enviar uma denúncia
+- Mostrar a denúncia na tabela reports
+
+
+5. VERCEL / DEPLOY ONLINE
+
+Posso mostrar que o projeto está publicado online na Vercel.
+
+Na Vercel é possível mostrar:
+- Deployments antigos
+- Data dos deploys
+- Ligação ao GitHub
+- Atualizações feitas por push
+
+Frase que posso dizer:
+"O projeto está ligado ao GitHub e cada push gera uma nova versão online na Vercel."
+
+
+6. VÍDEO CURTO DE PROVA
+
+Posso gravar um vídeo curto de 2 a 5 minutos como prova extra.
+
+O vídeo pode mostrar:
+1. Abrir o VS Code
+2. Mostrar os ficheiros principais
+3. Fazer npm run dev
+4. Entrar na aplicação
+5. Demonstrar funcionalidades
+6. Mostrar Supabase
+7. Mostrar GitHub
+
+Isto serve como prova caso algo falhe no dia da apresentação.
+
+
+7. README.MD NO GITHUB
+
+Posso criar um ficheiro README.md no GitHub com a explicação do projeto.
+
+Exemplo de README:
+
+# Valorant Team Manager
+
+Projeto desenvolvido por Francisco Daniel Rebel no âmbito da PAP.
+
+## Tecnologias usadas
+- React
+- Vite
+- Tailwind CSS
+- Supabase
+- HenrikDev API
+- Vercel
+
+## Funcionalidades
+- Autenticação de utilizadores
+- Criação e gestão de equipas
+- Convites para equipas
+- Feed de clipes
+- Perfil de jogador
+- Vinculação de conta Riot/Valorant
+- Estatísticas e rank Valorant
+- Sistema de denúncias/moderação
+- Sistema LFT
+
+## Como correr localmente
+npm install
+npm run dev
+
+
+8. PÁGINA "SOBRE O PROJETO"
+
+Também posso criar uma página dentro do site com informação sobre o projeto.
+
+Exemplo:
+- Projeto desenvolvido por Francisco Daniel Rebel
+- PAP 2025/2026
+- Curso
+- Escola
+- Tecnologias usadas
+- Objetivo do projeto
+- Funcionalidades principais
+
+Isto ajuda a contextualizar o projeto para o júri.
+
+
+9. MOSTRAR PROBLEMAS QUE RESOLVI
+
+Explicar problemas reais que apareceram durante o desenvolvimento é uma prova muito forte, porque mostra processo e não apenas resultado final.
+
+Problemas que resolvi:
+- Reset password só funcionava em localhost
+- Conta Valorant vinculava mas não mostrava nome nem tag
+- API devolvia name e tag vazios
+- Tive de usar fallback com o Riot ID escrito pelo utilizador
+- Rank desaparecia quando a API falhava
+- Tive de guardar cache local das estatísticas
+- Win rate estava errada porque a API podia devolver as equipas em formatos diferentes
+- Problemas de Git com conflitos no package.json
+- Problemas ao atualizar o GitHub com o branch main
+
+Isto mostra que o projeto foi desenvolvido, testado e corrigido por mim.
+
+
+10. PERGUNTAS TÉCNICAS QUE POSSO RESPONDER
+
+Pergunta:
+Onde guardas a conta Riot?
+
+Resposta:
+Guardo na tabela profiles, nas colunas riot_account e riot_puuid.
+
+Pergunta:
+Como evitas que duas pessoas usem a mesma conta Valorant?
+
+Resposta:
+Uso o riot_puuid, que identifica a conta Riot de forma única.
+
+Pergunta:
+Como vais buscar o rank?
+
+Resposta:
+Uso a HenrikDev API com Riot ID, tag, região e plataforma.
+
+Pergunta:
+O que acontece se a API falhar?
+
+Resposta:
+A app mantém os últimos dados em cache local para não mostrar tudo vazio.
+
+Pergunta:
+Como proteges páginas privadas?
+
+Resposta:
+Uso Supabase Auth para controlar a sessão do utilizador.
+
+Pergunta:
+Como sabes se um utilizador é admin?
+
+Resposta:
+Verifico o campo is_admin na tabela profiles.
+
+Pergunta:
+Onde ficam as equipas?
+
+Resposta:
+As equipas ficam na tabela teams e os membros na tabela team_members.
+
+Pergunta:
+Como funciona o feed?
+
+Resposta:
+As publicações ficam em feed_posts, os comentários em feed_comments e os likes em feed_likes.
+
+
+11. MELHOR FORMA DE PROVAR AO VIVO
+
+A prova mais forte é fazer uma alteração pequena ao vivo.
+
+Exemplo:
+1. Abrir o VS Code
+2. Alterar um texto simples
+3. Guardar
+4. Mostrar que a app atualiza
+5. Fazer commit
+6. Fazer push para o GitHub
+
+Comandos:
+git add .
+git commit -m "alteracao demonstracao"
+git push origin main
+
+Isto mostra domínio do projeto, do código e do GitHub.
+
+
+12. COMBO IDEAL PARA LEVAR PARA A APRESENTAÇÃO
+
+Levar:
+- GitHub com commits
+- Deploy Vercel
+- Supabase aberto
+- Projeto a correr localmente
+- Vídeo curto gravado
+- README.md
+- Explicação dos bugs corrigidos
+- Demonstração ao vivo
+
+Resumo:
+A melhor prova é combinar histórico técnico, demonstração ao vivo e explicação clara do funcionamento interno do projeto.

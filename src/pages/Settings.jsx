@@ -11,10 +11,14 @@ import {
   Save,
   Lock,
   Camera,
+  Languages,
 } from "lucide-react";
 import { supabase } from "../supabaseClient";
+import LanguageSwitcher from "../components/LanguageSwitcher";
+import { useLanguage } from "../i18n/LanguageContext";
 
 export default function Settings({ riotAccount, setRiotAccount, userName }) {
+  const { t } = useLanguage();
   // --- ESTADOS: RIOT GAMES ---
   const [isLinking, setIsLinking] = useState(false);
   const [riotName, setRiotName] = useState("");
@@ -42,6 +46,14 @@ export default function Settings({ riotAccount, setRiotAccount, userName }) {
   });
 
   const HENRIK_API_KEY = "HDEV-08f8bd4c-1d92-45d3-9309-e02904f7f8ff";
+
+  const roleOptions = [
+    { value: "Controlador", label: t("settings.roles.controller") },
+    { value: "Duelista", label: t("settings.roles.duelist") },
+    { value: "Iniciador", label: t("settings.roles.initiator") },
+    { value: "Sentinela", label: t("settings.roles.sentinel") },
+    { value: "Flex", label: t("settings.roles.flex") },
+  ];
 
   useEffect(() => {
     const fetchProfileData = async () => {
@@ -88,18 +100,18 @@ export default function Settings({ riotAccount, setRiotAccount, userName }) {
       const { data: userRes } = await supabase.auth.getUser();
       const uid = userRes?.user?.id;
 
-      if (!uid) throw new Error("Utilizador não autenticado.");
+      if (!uid) throw new Error(t("settings.messages.unauthenticated"));
 
       const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
 
       if (!allowedTypes.includes(file.type)) {
-        throw new Error("Formato inválido. Usa JPG, PNG, GIF ou WEBP.");
+        throw new Error(t("settings.messages.invalidImageFormat"));
       }
 
       const maxSizeMb = 5;
 
       if (file.size > maxSizeMb * 1024 * 1024) {
-        throw new Error(`A imagem não pode ter mais de ${maxSizeMb}MB.`);
+        throw new Error(t("settings.messages.imageTooLarge"));
       }
 
       const fileExt = file.name.split(".").pop();
@@ -129,7 +141,7 @@ export default function Settings({ riotAccount, setRiotAccount, userName }) {
       setAvatarUrl(publicUrl);
       setAvatarMessage({
         type: "success",
-        text: "Imagem de perfil atualizada!",
+        text: t("settings.messages.profileImageUpdated"),
       });
 
       setTimeout(() => setAvatarMessage({ type: "", text: "" }), 4000);
@@ -137,7 +149,7 @@ export default function Settings({ riotAccount, setRiotAccount, userName }) {
       console.error("Erro a fazer upload:", err);
       setAvatarMessage({
         type: "error",
-        text: err.message || "Erro ao atualizar a imagem.",
+        text: err.message || t("settings.messages.profileImageUpdateError"),
       });
     } finally {
       setIsUploadingAvatar(false);
@@ -155,7 +167,7 @@ export default function Settings({ riotAccount, setRiotAccount, userName }) {
     if (newPassword.length < 6) {
       setPasswordMessage({
         type: "error",
-        text: "A senha deve ter pelo menos 6 caracteres.",
+        text: t("settings.messages.passwordMin"),
       });
       return;
     }
@@ -163,7 +175,7 @@ export default function Settings({ riotAccount, setRiotAccount, userName }) {
     if (newPassword !== confirmPassword) {
       setPasswordMessage({
         type: "error",
-        text: "As senhas não coincidem.",
+        text: t("settings.messages.passwordsMismatch"),
       });
       return;
     }
@@ -179,7 +191,7 @@ export default function Settings({ riotAccount, setRiotAccount, userName }) {
 
       setPasswordMessage({
         type: "success",
-        text: "Senha atualizada com sucesso!",
+        text: t("settings.messages.passwordUpdated"),
       });
 
       setNewPassword("");
@@ -189,7 +201,7 @@ export default function Settings({ riotAccount, setRiotAccount, userName }) {
     } catch (err) {
       setPasswordMessage({
         type: "error",
-        text: "Erro ao alterar a senha: " + err.message,
+        text: `${t("settings.messages.passwordUpdateErrorPrefix")} ${err.message}`,
       });
     } finally {
       setIsChangingPassword(false);
@@ -207,7 +219,7 @@ export default function Settings({ riotAccount, setRiotAccount, userName }) {
       const { data: userRes } = await supabase.auth.getUser();
 
       if (!userRes?.user) {
-        throw new Error("Utilizador não autenticado.");
+        throw new Error(t("settings.messages.unauthenticated"));
       }
 
       const { error } = await supabase
@@ -222,7 +234,7 @@ export default function Settings({ riotAccount, setRiotAccount, userName }) {
 
       setRoleMessage({
         type: "success",
-        text: "Funções atualizadas com sucesso!",
+        text: t("settings.messages.rolesUpdated"),
       });
 
       setTimeout(() => setRoleMessage({ type: "", text: "" }), 3000);
@@ -231,7 +243,7 @@ export default function Settings({ riotAccount, setRiotAccount, userName }) {
 
       setRoleMessage({
         type: "error",
-        text: "Erro ao guardar. Verifica a tua ligação.",
+        text: t("settings.messages.rolesSaveError"),
       });
     } finally {
       setIsSavingRoles(false);
@@ -280,7 +292,7 @@ export default function Settings({ riotAccount, setRiotAccount, userName }) {
       const { data: userData, error: userError } = await supabase.auth.getUser();
 
       if (userError || !userData?.user) {
-        throw new Error("Tens de estar com sessão iniciada.");
+        throw new Error(t("settings.messages.sessionRequired"));
       }
 
       const uid = userData.user.id;
@@ -288,7 +300,7 @@ export default function Settings({ riotAccount, setRiotAccount, userName }) {
       const tag = riotTag.trim().replace("#", "");
 
       if (!name || !tag) {
-        throw new Error("Mete o nome e a tag da Riot.");
+        throw new Error(t("settings.messages.riotNameTagRequired"));
       }
 
       const res = await fetch(
@@ -309,14 +321,14 @@ export default function Settings({ riotAccount, setRiotAccount, userName }) {
         throw new Error(
           json.message ||
             json.details ||
-            "Conta Riot não encontrada. Verifica o Riot ID e a tag."
+            t("settings.messages.riotAccountNotFound")
         );
       }
 
       const acc = json.data;
 
       if (!acc.puuid) {
-        throw new Error("A API não devolveu o PUUID desta conta.");
+        throw new Error(t("settings.messages.riotMissingPuuid"));
       }
 
       const { data: existingUser, error: existingError } = await supabase
@@ -330,7 +342,7 @@ export default function Settings({ riotAccount, setRiotAccount, userName }) {
       }
 
       if (existingUser && existingUser.id !== uid) {
-        throw new Error("Esta conta Riot já está vinculada a outro utilizador.");
+        throw new Error(t("settings.messages.riotAlreadyLinkedUser"));
       }
 
       const finalName = acc.name || name;
@@ -357,7 +369,7 @@ const riotAccountData = {
       if (updateError) {
         if (updateError.code === "23505") {
           throw new Error(
-            "Esta conta Riot já se encontra vinculada a outro jogador na plataforma!"
+            t("settings.messages.riotAlreadyLinkedPlatform")
           );
         }
 
@@ -371,19 +383,19 @@ const riotAccountData = {
       setRiotName("");
       setRiotTag("");
       setIsLinking(false);
-      setSuccessMsg("Conta Valorant vinculada com sucesso!");
+      setSuccessMsg(t("settings.messages.riotLinkedSuccess"));
 
       setTimeout(() => setSuccessMsg(""), 4000);
     } catch (err) {
       console.error("Erro ao vincular conta Riot:", err);
-      setError(err.message || "Erro ao vincular conta Riot.");
+      setError(err.message || t("settings.messages.riotLinkError"));
     } finally {
       setLoading(false);
     }
   };
 
   const handleUnlink = async () => {
-    if (!window.confirm("Tens a certeza que queres desvincular a tua conta Valorant?")) {
+    if (!window.confirm(t("settings.messages.unlinkConfirm"))) {
       return;
     }
 
@@ -395,7 +407,7 @@ const riotAccountData = {
       const { data: userRes } = await supabase.auth.getUser();
 
       if (!userRes?.user) {
-        throw new Error("Utilizador não autenticado.");
+        throw new Error(t("settings.messages.unauthenticated"));
       }
 
       const { error } = await supabase
@@ -414,12 +426,12 @@ const riotAccountData = {
 
       setRiotName("");
       setRiotTag("");
-      setSuccessMsg("Conta Valorant desvinculada com sucesso.");
+      setSuccessMsg(t("settings.messages.riotUnlinkedSuccess"));
 
       setTimeout(() => setSuccessMsg(""), 4000);
     } catch (err) {
       console.error("Erro ao desvincular conta:", err);
-      setError(err.message || "Erro ao desvincular conta.");
+      setError(err.message || t("settings.messages.riotUnlinkError"));
     } finally {
       setLoading(false);
     }
@@ -429,10 +441,10 @@ const riotAccountData = {
     <div className="animate-fade-in max-w-4xl mx-auto pb-10">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-white tracking-tight">
-          Definições da Conta
+          {t("settings.title")}
         </h1>
         <p className="text-gray-400 mt-2">
-          Gere as tuas preferências, segurança e dados pessoais.
+          {t("settings.description")}
         </p>
       </div>
 
@@ -449,10 +461,10 @@ const riotAccountData = {
           <Lock className="text-blue-500" size={24} />
           <div>
             <h2 className="text-xl font-bold text-white tracking-wide">
-              Segurança
+              {t("settings.security")}
             </h2>
             <p className="text-sm text-gray-500 mt-1">
-              Altera a tua palavra-passe de acesso à plataforma.
+              {t("settings.securityDescription")}
             </p>
           </div>
         </div>
@@ -481,28 +493,28 @@ const riotAccountData = {
           >
             <div>
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-                Nova Senha
+                {t("settings.newPassword")}
               </label>
               <input
                 type="password"
                 required
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="Mínimo 6 caracteres"
+                placeholder={t("settings.newPasswordPlaceholder")}
                 className="w-full bg-[#181a1b] border border-gray-800 rounded px-4 py-3 text-white focus:outline-none focus:border-blue-500 transition-colors"
               />
             </div>
 
             <div>
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-                Confirmar Nova Senha
+                {t("settings.confirmNewPassword")}
               </label>
               <input
                 type="password"
                 required
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Repete a senha"
+                placeholder={t("settings.confirmNewPasswordPlaceholder")}
                 className="w-full bg-[#181a1b] border border-gray-800 rounded px-4 py-3 text-white focus:outline-none focus:border-blue-500 transition-colors"
               />
             </div>
@@ -518,7 +530,7 @@ const riotAccountData = {
                 ) : (
                   <Save size={16} />
                 )}
-                Atualizar Senha
+                {t("settings.updatePassword")}
               </button>
             </div>
           </form>
@@ -531,10 +543,10 @@ const riotAccountData = {
           <LinkIcon className="text-red-500" size={24} />
           <div>
             <h2 className="text-xl font-bold text-white tracking-wide">
-              Contas Vinculadas
+              {t("settings.linkedAccounts")}
             </h2>
             <p className="text-sm text-gray-500 mt-1">
-              Vincula jogos para sincronizar estatísticas automaticamente.
+              {t("settings.linkedAccountsDescription")}
             </p>
           </div>
         </div>
@@ -549,14 +561,14 @@ const riotAccountData = {
 
                 <div>
                   <h3 className="text-lg font-bold text-white">
-                    Riot Games / Valorant
+                    {t("settings.riotTitle")}
                   </h3>
 
                   {riotAccount ? (
                     <div className="flex items-center gap-2 mt-1 text-green-500 text-sm font-medium">
                       <CheckCircle size={16} />
                       <span>
-                        Vinculado como{" "}
+                        {t("settings.linkedAs")}{" "}
                         <strong className="text-white">
                           {riotAccount.name}#{riotAccount.tag}
                         </strong>
@@ -564,7 +576,7 @@ const riotAccountData = {
                     </div>
                   ) : (
                     <p className="text-sm text-gray-500 mt-1">
-                      Sincroniza o teu rank e player card no dashboard.
+                      {t("settings.riotSyncDescription")}
                     </p>
                   )}
                 </div>
@@ -580,7 +592,7 @@ const riotAccountData = {
                     }}
                     className="bg-red-500 hover:bg-red-600 text-white px-5 py-2.5 rounded font-bold uppercase tracking-wider text-xs transition-colors w-full md:w-auto"
                   >
-                    Vincular Conta
+                    {t("settings.linkAccount")}
                   </button>
                 )}
 
@@ -595,7 +607,7 @@ const riotAccountData = {
                     ) : (
                       <Unlink size={16} />
                     )}
-                    Desvincular
+                    {t("settings.unlink")}
                   </button>
                 )}
               </div>
@@ -604,7 +616,7 @@ const riotAccountData = {
             {isLinking && (
               <div className="mt-6 pt-6 border-t border-gray-800 animate-fade-in">
                 <h4 className="text-white font-bold mb-4">
-                  Insere os teus dados da Riot Games
+                  {t("settings.riotFormTitle")}
                 </h4>
 
                 {error && (
@@ -620,7 +632,7 @@ const riotAccountData = {
                 >
                   <div className="flex-1">
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-                      Riot ID
+                      {t("settings.riotId")}
                     </label>
                     <input
                       type="text"
@@ -634,7 +646,7 @@ const riotAccountData = {
 
                   <div className="w-full sm:w-32">
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-                      Tagline
+                      {t("settings.tagline")}
                     </label>
 
                     <div className="relative">
@@ -665,7 +677,7 @@ const riotAccountData = {
                       }}
                       className="px-4 py-2.5 border border-gray-700 hover:bg-gray-800 text-gray-300 rounded font-bold text-xs uppercase tracking-wider transition-colors h-[42px]"
                     >
-                      Cancelar
+                      {t("common.cancel")}
                     </button>
 
                     <button
@@ -676,7 +688,7 @@ const riotAccountData = {
                       {loading ? (
                         <Loader2 size={16} className="animate-spin" />
                       ) : (
-                        "Procurar"
+                        t("common.search")
                       )}
                     </button>
                   </div>
@@ -695,16 +707,34 @@ const riotAccountData = {
       </div>
 
       {/* SECÇÃO: DETALHES DE PERFIL, AVATAR E FUNÇÕES */}
+      <div className="bg-[#181a1b] border border-gray-800 rounded-lg overflow-hidden mb-8 shadow-sm">
+        <div className="p-6 border-b border-gray-800 flex items-center gap-3">
+          <Languages className="text-emerald-400" size={24} />
+          <div>
+            <h2 className="text-xl font-bold text-white tracking-wide">
+              {t("settings.language")}
+            </h2>
+            <p className="text-sm text-gray-500 mt-1">
+              {t("settings.languageDescription")}
+            </p>
+          </div>
+        </div>
+
+        <div className="p-6 bg-[#0f1112]">
+          <LanguageSwitcher />
+        </div>
+      </div>
+
       <div className="bg-[#181a1b] border border-gray-800 rounded-lg overflow-hidden shadow-sm">
         <div className="p-6 border-b border-gray-800 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <User className="text-gray-400" size={24} />
             <div>
               <h2 className="text-xl font-bold text-white tracking-wide">
-                Dados Pessoais e Funções
+                {t("settings.personalDataAndRoles")}
               </h2>
               <p className="text-sm text-gray-500 mt-1">
-                O teu perfil de utilizador, imagem e funções no jogo.
+                {t("settings.personalDataAndRolesDescription")}
               </p>
             </div>
           </div>
@@ -728,7 +758,7 @@ const riotAccountData = {
 
               <label
                 className="absolute bottom-0 right-0 p-2 bg-blue-500 rounded-full cursor-pointer hover:bg-blue-600 transition-colors shadow-lg border-2 border-[#181a1b]"
-                title="Alterar Foto"
+                title={t("settings.changePhoto")}
               >
                 {isUploadingAvatar ? (
                   <Loader2 size={14} className="animate-spin text-white" />
@@ -747,9 +777,9 @@ const riotAccountData = {
             </div>
 
             <div>
-              <h3 className="text-lg font-bold text-white">Foto de Perfil</h3>
+              <h3 className="text-lg font-bold text-white">{t("settings.profilePhoto")}</h3>
               <p className="text-xs md:text-sm text-gray-500 mb-2">
-                Formatos suportados: JPG, PNG, GIF ou WEBP.
+                {t("settings.supportedFormats")}
               </p>
 
               {avatarMessage.text && (
@@ -774,28 +804,28 @@ const riotAccountData = {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-                Nome de Utilizador
+                {t("settings.username")}
               </label>
               <div className="w-full bg-[#181a1b] border border-gray-800 rounded px-4 py-3 text-gray-300 font-medium">
-                {userName || "A carregar nome..."}
+                {userName || t("common.loadingName")}
               </div>
             </div>
 
             <div>
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-                Riot ID Associado
+                {t("settings.linkedRiotId")}
               </label>
               <div className="w-full bg-[#181a1b] border border-gray-800 rounded px-4 py-3 text-white font-medium">
                 {riotAccount
                   ? `${riotAccount.name} #${riotAccount.tag}`
-                  : "Nenhuma conta vinculada"}
+                  : t("settings.noLinkedAccount")}
               </div>
             </div>
           </div>
 
           <div className="mt-8 border-t border-gray-800 pt-8">
             <h3 className="text-lg font-bold text-white mb-6 border-l-4 border-red-500 pl-3">
-              As Minhas Funções
+              {t("settings.myRoles")}
             </h3>
 
             {roleMessage.text && (
@@ -818,37 +848,37 @@ const riotAccountData = {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-                  Função Principal
+                  {t("settings.mainRole")}
                 </label>
                 <select
                   value={mainRole}
                   onChange={(e) => setMainRole(e.target.value)}
                   className="w-full bg-[#181a1b] border border-gray-800 rounded px-4 py-3 text-white focus:outline-none focus:border-red-500 transition-colors cursor-pointer"
                 >
-                  <option value="Não definida">Selecionar...</option>
-                  <option value="Controlador">Controlador</option>
-                  <option value="Duelista">Duelista</option>
-                  <option value="Iniciador">Iniciador</option>
-                  <option value="Sentinela">Sentinela</option>
-                  <option value="Flex">Flex (Todas)</option>
+                  <option value="Não definida">{t("settings.roles.selectMain")}</option>
+                  {roleOptions.map((role) => (
+                    <option key={role.value} value={role.value}>
+                      {role.label}
+                    </option>
+                  ))}
                 </select>
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-                  Função Secundária
+                  {t("settings.secondaryRole")}
                 </label>
                 <select
                   value={secRole}
                   onChange={(e) => setSecRole(e.target.value)}
                   className="w-full bg-[#181a1b] border border-gray-800 rounded px-4 py-3 text-white focus:outline-none focus:border-red-500 transition-colors cursor-pointer"
                 >
-                  <option value="Não definida">Nenhuma / Selecionar...</option>
-                  <option value="Controlador">Controlador</option>
-                  <option value="Duelista">Duelista</option>
-                  <option value="Iniciador">Iniciador</option>
-                  <option value="Sentinela">Sentinela</option>
-                  <option value="Flex">Flex (Todas)</option>
+                  <option value="Não definida">{t("settings.roles.selectSecondary")}</option>
+                  {roleOptions.map((role) => (
+                    <option key={role.value} value={role.value}>
+                      {role.label}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -864,7 +894,7 @@ const riotAccountData = {
                 ) : (
                   <Save size={16} />
                 )}
-                Guardar Funções
+                {t("settings.saveRoles")}
               </button>
             </div>
           </div>

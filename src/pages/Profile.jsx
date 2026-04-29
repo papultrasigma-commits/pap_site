@@ -19,10 +19,12 @@ import {
   Flag,
 } from "lucide-react";
 import { supabase } from "../supabaseClient";
+import { useLanguage } from "../i18n/LanguageContext";
 
 // === COMPONENTE POST CARD ===
 const PostCard = ({ post, currentUser, currentUserName, onDelete }) => {
   const navigate = useNavigate();
+  const { t } = useLanguage();
 
   const [liked, setLiked] = useState(false);
   const [likesCount, setLikesCount] = useState(Math.max(0, post.likes || 0));
@@ -133,7 +135,7 @@ const PostCard = ({ post, currentUser, currentUserName, onDelete }) => {
   };
 
   const handleDeletePost = async () => {
-    if (!window.confirm("Tens a certeza que queres apagar esta publicação?")) return;
+    if (!window.confirm(t("profile.deletePostConfirm"))) return;
 
     setIsDeleting(true);
 
@@ -147,7 +149,7 @@ const PostCard = ({ post, currentUser, currentUserName, onDelete }) => {
   const timeAgo = (date) => {
     const min = Math.abs(new Date() - new Date(date)) / 60000;
 
-    if (min < 1) return "Agora";
+    if (min < 1) return t("common.now");
     if (min < 60) return `${Math.floor(min)}m`;
     if (min / 60 < 24) return `${Math.floor(min / 60)}h`;
 
@@ -260,7 +262,7 @@ const PostCard = ({ post, currentUser, currentUserName, onDelete }) => {
           }`}
         >
           <MessageCircle size={18} />
-          <span className="text-xs font-bold">Comentar</span>
+          <span className="text-xs font-bold">{t("profile.comment")}</span>
         </button>
       </div>
 
@@ -307,7 +309,7 @@ const PostCard = ({ post, currentUser, currentUserName, onDelete }) => {
               type="text"
               value={newComment}
               onChange={(e) => setNewComment(e.target.value)}
-              placeholder="Comentar..."
+              placeholder={t("profile.commentPlaceholder")}
               className="flex-1 bg-[#181a1b] border border-gray-800 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-blue-500"
             />
 
@@ -335,6 +337,7 @@ export default function Profile({
   riotAccount: currentUserRiot,
 }) {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const { userId } = useParams();
 
   const [currentUserObj, setCurrentUserObj] = useState(null);
@@ -437,7 +440,7 @@ export default function Profile({
           const riotTag = profile.riot_account?.tag;
           const riotPuuid = profile.riot_account?.puuid;
 
-          setDisplayUserName(riotName || profile.username || "Utilizador");
+          setDisplayUserName(riotName || profile.username || t("common.user"));
           setAvatarUrl(profile.avatar_url);
           setTargetRiotAccount(profile.riot_account || null);
           setIsRiotLinked(!!riotPuuid && !!riotName && !!riotTag);
@@ -1037,12 +1040,12 @@ export default function Profile({
 
       if (error) throw error;
 
-      alert("Denúncia enviada com sucesso. A nossa equipa irá analisar.");
+      alert(t("profile.reportSuccess"));
       setShowReportModal(false);
       setReportReason("");
     } catch (err) {
       console.error("Erro ao enviar denúncia:", err);
-      alert("Ocorreu um erro ao enviar a denúncia.");
+      alert(t("profile.reportError"));
     }
 
     setIsReporting(false);
@@ -1076,7 +1079,7 @@ export default function Profile({
     mmrData?.current_data?.currenttierpatched ||
     mmrData?.currenttierpatched ||
     mmrData?.highest_rank?.patched_tier ||
-    "Sem Rank";
+    t("dashboard.noRank");
 
   const rankTierId =
     mmrData?.current?.tier?.id ||
@@ -1148,15 +1151,15 @@ export default function Profile({
                   {lftLoading ? (
                     <Loader2 size={16} className="animate-spin" />
                   ) : isLft ? (
-                    "🟢 LFT (À procura)"
+                    t("profile.lftLooking")
                   ) : (
-                    "⚪ LFT (Inativo)"
+                    t("profile.lftInactive")
                   )}
                 </button>
               ) : (
                 isLft && (
                   <span className="px-4 py-1.5 sm:py-2 rounded-full font-bold text-xs sm:text-sm bg-green-500/10 border border-green-500/50 text-green-500 cursor-default">
-                    🟢 LFT (Procura Equipa)
+                    {t("profile.lftBadge")}
                   </span>
                 )
               )}
@@ -1167,7 +1170,7 @@ export default function Profile({
                   className="px-4 py-1.5 sm:py-2 bg-transparent border border-gray-600 hover:border-gray-400 text-white rounded-full font-bold text-xs sm:text-sm transition-colors flex items-center gap-2"
                 >
                   <Settings size={16} />
-                  Editar Perfil
+                  {t("profile.editProfile")}
                 </button>
               ) : (
                 <>
@@ -1183,16 +1186,16 @@ export default function Profile({
                     {followLoading ? (
                       <Loader2 size={16} className="animate-spin" />
                     ) : isFollowing ? (
-                      "A Seguir"
+                      t("profile.following")
                     ) : (
-                      "Seguir"
+                      t("profile.follow")
                     )}
                   </button>
 
                   <button
                     onClick={() => setShowReportModal(true)}
                     className="p-2 sm:py-2 rounded-full bg-transparent border border-gray-600 text-gray-400 hover:text-red-500 hover:border-red-500 hover:bg-red-500/10 transition-colors"
-                    title="Denunciar Utilizador"
+                    title={t("profile.reportUser")}
                   >
                     <Flag size={18} />
                   </button>
@@ -1219,7 +1222,7 @@ export default function Profile({
                 {dbUser.mainRole}
               </span>
 
-              <span>Entrou em {dbUser.joinDate}</span>
+              <span>{t("profile.joinedIn")} {dbUser.joinDate}</span>
             </div>
 
             <div className="flex items-center gap-6 mt-4 relative z-10">
@@ -1231,7 +1234,7 @@ export default function Profile({
                   {followingCount}
                 </span>
                 <span className="text-sm text-gray-500 group-hover:text-gray-300">
-                  A seguir
+                  {t("profile.followingLabel")}
                 </span>
               </div>
 
@@ -1243,7 +1246,7 @@ export default function Profile({
                   {followersCount}
                 </span>
                 <span className="text-sm text-gray-500 group-hover:text-gray-300">
-                  Seguidores
+                  {t("profile.followers")}
                 </span>
               </div>
             </div>
@@ -1259,7 +1262,7 @@ export default function Profile({
                 : "text-gray-500 hover:text-gray-300 hover:bg-gray-800/50"
             }`}
           >
-            Estatísticas
+            {t("profile.stats")}
             {activeTab === "stats" && (
               <div className="absolute bottom-0 left-1/4 right-1/4 h-1 bg-red-500 rounded-t-full" />
             )}
@@ -1273,7 +1276,7 @@ export default function Profile({
                 : "text-gray-500 hover:text-gray-300 hover:bg-gray-800/50"
             }`}
           >
-            Publicações
+            {t("profile.posts")}
             {activeTab === "posts" && (
               <div className="absolute bottom-0 left-1/4 right-1/4 h-1 bg-red-500 rounded-t-full" />
             )}
@@ -1295,7 +1298,7 @@ export default function Profile({
 
                   <div>
                     <h3 className="text-sm text-gray-400 font-bold uppercase tracking-wider mb-1">
-                      Rank Atual
+                      {t("profile.currentRank")}
                     </h3>
 
                     <div className="text-3xl font-black text-white tracking-tight">
@@ -1305,16 +1308,16 @@ export default function Profile({
                     {loadingStats && (
                       <div className="text-xs text-blue-400 font-bold mt-1 flex items-center gap-2">
                         <Loader2 size={12} className="animate-spin" />
-                        A atualizar dados...
+                        {t("common.updatingData")}
                       </div>
                     )}
 
                     <div className="text-sm font-medium text-gray-500 mt-1">
-                      Conta: {targetRiotAccount.name}#{targetRiotAccount.tag}
+                      {t("profile.accountLabel")}: {targetRiotAccount.name}#{targetRiotAccount.tag}
                     </div>
 
                     <div className="text-sm font-medium text-gray-500 mt-1">
-                      Nível de Conta: {accLevel}
+                      {t("profile.accountLevel")}: {accLevel}
                     </div>
                   </div>
                 </div>
@@ -1322,7 +1325,7 @@ export default function Profile({
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                   <StatBox
                     icon={<Swords className="w-5 h-5 text-gray-400" />}
-                    label="K/D Ratio"
+                    label={t("profile.statLabels.kd")}
                     value={
                       loadingStats && playerStats.kdRatio === "-"
                         ? "..."
@@ -1332,7 +1335,7 @@ export default function Profile({
 
                   <StatBox
                     icon={<TrendingUp className="w-5 h-5 text-gray-400" />}
-                    label="Win Rate"
+                    label={t("profile.statLabels.winRate")}
                     value={
                       loadingStats && playerStats.winRate === "-"
                         ? "..."
@@ -1342,7 +1345,7 @@ export default function Profile({
 
                   <StatBox
                     icon={<Crosshair className="w-5 h-5 text-gray-400" />}
-                    label="Headshot"
+                    label={t("profile.statLabels.headshot")}
                     value={
                       loadingStats && playerStats.headshotPct === "-"
                         ? "..."
@@ -1352,7 +1355,7 @@ export default function Profile({
 
                   <StatBox
                     icon={<Shield className="w-5 h-5 text-gray-400" />}
-                    label="Partidas"
+                    label={t("profile.statLabels.matches")}
                     value={
                       loadingStats && playerStats.matchesPlayed === "-"
                         ? "..."
@@ -1366,13 +1369,13 @@ export default function Profile({
                 <LinkIcon className="w-10 h-10 text-gray-600 mb-4 opacity-50" />
 
                 <h3 className="text-lg font-bold text-white mb-2 tracking-tight">
-                  Conta Valorant Não Vinculada
+                  {t("profile.unlinkedTitle")}
                 </h3>
 
                 <p className="text-gray-500 mb-6 max-w-sm text-sm leading-relaxed">
                   {isOwnProfile
-                    ? "Vincula a tua conta Valorant nas definições para exibires as tuas estatísticas, rank e Player Card."
-                    : "Este utilizador ainda não vinculou nenhuma conta Valorant."}
+                    ? t("profile.unlinkedSelf")
+                    : t("profile.unlinkedOther")}
                 </p>
 
                 {isOwnProfile && (
@@ -1380,7 +1383,7 @@ export default function Profile({
                     onClick={() => navigate("/settings")}
                     className="px-6 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-full font-bold uppercase tracking-wider text-xs shadow-lg shadow-red-500/20 transform hover:-translate-y-0.5 transition-all"
                   >
-                    Vincular Conta Agora
+                    {t("profile.linkNow")}
                   </button>
                 )}
               </div>
@@ -1399,13 +1402,13 @@ export default function Profile({
                 <ImageIcon className="w-12 h-12 text-gray-700 mx-auto mb-3 opacity-50" />
 
                 <p className="text-gray-400 font-medium tracking-tight">
-                  Sem publicações
+                  {t("profile.noPostsTitle")}
                 </p>
 
                 <p className="text-sm text-gray-600 mt-1">
                   {isOwnProfile
-                    ? "Ainda não publicaste nada no teu feed."
-                    : "Este utilizador ainda não fez publicações."}
+                    ? t("profile.noPostsSelf")
+                    : t("profile.noPostsOther")}
                 </p>
               </div>
             ) : (
@@ -1428,7 +1431,9 @@ export default function Profile({
           <div className="bg-[#181a1b] border border-gray-800 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[80vh] animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between p-4 border-b border-gray-800 bg-[#1f2122]/30">
               <h2 className="text-lg font-bold text-white tracking-tight">
-                {followModalType === "followers" ? "Seguidores" : "A seguir"}
+                {followModalType === "followers"
+                  ? t("profile.followers")
+                  : t("profile.followingLabel")}
               </h2>
 
               <button
@@ -1447,14 +1452,14 @@ export default function Profile({
               ) : modalUsers.length === 0 ? (
                 <div className="text-center py-10 text-gray-600 text-sm">
                   {followModalType === "followers"
-                    ? "Ainda não tem seguidores."
-                    : "Ainda não segue ninguém."}
+                    ? t("profile.followersEmpty")
+                    : t("profile.followingEmpty")}
                 </div>
               ) : (
                 <div className="space-y-1">
                   {modalUsers.map((user) => {
                     const dispName =
-                      user.riot_account?.name || user.username || "Utilizador";
+                      user.riot_account?.name || user.username || t("common.user");
 
                     return (
                       <div
@@ -1485,7 +1490,7 @@ export default function Profile({
                           <p className="text-xs text-gray-500 truncate -mt-0.5">
                             {user.riot_account?.tag
                               ? `#${user.riot_account.tag}`
-                              : user.main_role || "Jogador"}
+                              : user.main_role || t("profile.defaultPlayer")}
                           </p>
                         </div>
                       </div>
@@ -1504,7 +1509,7 @@ export default function Profile({
             <div className="flex items-center justify-between p-4 border-b border-gray-800 bg-[#1f2122]/30">
               <h2 className="text-lg font-bold text-white flex items-center gap-2">
                 <Flag size={18} className="text-red-500" />
-                Denunciar Utilizador
+                {t("profile.reportUser")}
               </h2>
 
               <button
@@ -1517,7 +1522,7 @@ export default function Profile({
 
             <form onSubmit={handleSubmitReport} className="p-5">
               <p className="text-sm text-gray-400 mb-4">
-                Por que motivo estás a denunciar o utilizador{" "}
+                {t("profile.reportPrompt")}{" "}
                 <strong className="text-white">{displayUserName}</strong>?
               </p>
 
@@ -1525,23 +1530,23 @@ export default function Profile({
                 {[
                   {
                     id: "comportamento_toxico",
-                    label: "Comportamento Tóxico / Assédio",
+                    label: t("profile.reportReasons.toxic"),
                   },
                   {
                     id: "cheat_hack",
-                    label: "Uso de Cheats ou Hacks",
+                    label: t("profile.reportReasons.cheat"),
                   },
                   {
                     id: "spam_scam",
-                    label: "Spam ou Tentativa de Scam",
+                    label: t("profile.reportReasons.spam"),
                   },
                   {
                     id: "perfil_falso",
-                    label: "Perfil Falso (Fake)",
+                    label: t("profile.reportReasons.fake"),
                   },
                   {
                     id: "conteudo_inadequado",
-                    label: "Nome ou Avatar Inadequado",
+                    label: t("profile.reportReasons.inappropriate"),
                   },
                 ].map((motivo) => (
                   <label
@@ -1570,7 +1575,7 @@ export default function Profile({
                   onClick={() => setShowReportModal(false)}
                   className="px-4 py-2 text-sm font-bold text-gray-400 hover:text-white transition-colors"
                 >
-                  Cancelar
+                  {t("common.cancel")}
                 </button>
 
                 <button
@@ -1581,7 +1586,7 @@ export default function Profile({
                   {isReporting ? (
                     <Loader2 size={16} className="animate-spin" />
                   ) : (
-                    "Enviar Denúncia"
+                    t("profile.sendReport")
                   )}
                 </button>
               </div>

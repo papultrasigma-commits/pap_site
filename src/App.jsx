@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Routes, Route, useNavigate, useLocation, Navigate } from "react-router-dom";
 import { supabase } from "./supabaseClient";
+import { useLanguage } from "./i18n/LanguageContext";
 
 // PAGES
 import DashboardPage from "./pages/Dashboard";
@@ -73,6 +74,7 @@ const SidebarItem = ({ icon, label, active = false, badge = null, onClick, color
 );
 
 export default function App() {
+  const { t } = useLanguage();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
@@ -246,7 +248,7 @@ export default function App() {
         u.user_metadata?.username ||
         u.user_metadata?.name ||
         u.email ||
-        "Utilizador";
+        t("common.user");
 
       setUserName(finalName);
       setIsAdmin(prof?.is_admin || false);
@@ -388,7 +390,7 @@ export default function App() {
     };
   }, [teamRefreshKey]);
 
-  const displayName = riotAccount?.name || (userLoading ? "..." : userName ?? "Utilizador");
+  const displayName = riotAccount?.name || (userLoading ? "..." : userName ?? t("common.user"));
   const initial = (displayName?.trim()?.[0] || "U").toUpperCase();
 
   const headerTitle = useMemo(() => {
@@ -418,6 +420,34 @@ export default function App() {
     return map[location.pathname] || "DASHBOARD";
   }, [location.pathname]);
 
+  const headerTitleMap = {
+    "/dashboard": "app.pageTitles.dashboard",
+    "/team": "app.pageTitles.team",
+    "/feed": "app.pageTitles.feed",
+    "/find-team": "app.pageTitles.findTeam",
+    "/recruit": "app.pageTitles.recruit",
+    "/create-team": "app.pageTitles.createTeam",
+    "/scrims": "app.pageTitles.scrims",
+    "/negotiations": "app.pageTitles.negotiations",
+    "/trainings": "app.pageTitles.trainings",
+    "/strategies": "app.pageTitles.strategies",
+    "/tournaments": "app.pageTitles.tournaments",
+    "/honor": "app.pageTitles.honor",
+    "/profile": "app.pageTitles.profile",
+    "/settings": "app.pageTitles.settings",
+    "/notifications": "app.pageTitles.notifications",
+    "/chat": "app.pageTitles.chat",
+    "/admin/reports": "app.pageTitles.moderation",
+    "/update-password": "app.pageTitles.updatePassword",
+    "/forgot-password": "app.pageTitles.forgotPassword",
+  };
+
+  const translatedHeaderTitle = t(
+    location.pathname.startsWith("/profile/")
+      ? "app.pageTitles.profile"
+      : headerTitleMap[location.pathname] || "app.pageTitles.dashboard"
+  ).toUpperCase();
+
   const isStrategies = location.pathname === "/strategies";
   const isChat = location.pathname === "/chat";
   const isUpdatePassword = location.pathname === "/update-password";
@@ -431,7 +461,9 @@ export default function App() {
             {isSwitching && (
               <div className="absolute inset-0 z-10 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center rounded-2xl">
                 <Loader2 className="animate-spin text-red-500 mb-3" size={36} />
-                <p className="text-white text-sm font-medium">A trocar de conta...</p>
+                <p className="text-white text-sm font-medium">
+                  {t("app.accountModal.switching")}
+                </p>
               </div>
             )}
 
@@ -444,13 +476,13 @@ export default function App() {
 
             <h2 className="text-xl font-bold mb-5 flex items-center gap-2">
               <RefreshCcw size={20} className="text-red-500" />
-              Mudar de Conta
+              {t("app.accountModal.title")}
             </h2>
 
             <div className="space-y-2 max-h-64 overflow-y-auto custom-scrollbar pr-1">
               {savedAccounts.length === 0 ? (
                 <p className="text-sm text-gray-500 text-center py-6">
-                  Ainda não tens contas guardadas.
+                  {t("app.accountModal.noSavedAccounts")}
                 </p>
               ) : (
                 savedAccounts.map((acc, idx) => {
@@ -472,7 +504,7 @@ export default function App() {
 
                       <div className="flex-1 min-w-0">
                         <p className="font-bold text-sm text-white truncate">
-                          {acc.username || "Utilizador"}
+                          {acc.username || t("common.user")}
                         </p>
                         <p className="text-xs text-gray-500 truncate">{acc.email}</p>
                       </div>
@@ -491,7 +523,7 @@ export default function App() {
               className="mt-4 w-full py-3.5 rounded-xl border border-dashed border-gray-700 hover:border-gray-500 hover:bg-neutral-900 flex items-center justify-center gap-2 font-medium text-sm text-gray-300 hover:text-white transition-all"
             >
               <Plus size={18} />
-              Adicionar nova conta
+              {t("app.accountModal.addNewAccount")}
             </button>
           </div>
         </div>
@@ -500,7 +532,7 @@ export default function App() {
       {sidebarOpen && (
         <button
           type="button"
-          aria-label="Fechar menu"
+          aria-label={t("common.closeMenu")}
           className="fixed inset-0 bg-black/50 z-20 md:hidden"
           onClick={() => setSidebarOpen(false)}
         />
@@ -536,12 +568,12 @@ export default function App() {
 
         <nav className="flex-1 py-6 px-4 space-y-2 overflow-y-auto custom-scrollbar">
           <div className="px-4 mb-2 text-[10px] font-bold text-gray-600 uppercase tracking-widest">
-            Principal
+            {t("app.sections.main")}
           </div>
 
           <SidebarItem
             icon={<LayoutDashboard size={20} />}
-            label="Dashboard"
+            label={t("app.sidebar.dashboard")}
             active={location.pathname === "/dashboard"}
             onClick={() => navigate("/dashboard")}
           />
@@ -550,21 +582,21 @@ export default function App() {
             <>
               <SidebarItem
                 icon={<Gavel size={20} />}
-                label="Moderação (Denúncias)"
+                label={t("app.sidebar.moderationReports")}
                 active={location.pathname === "/admin/reports"}
                 onClick={() => navigate("/admin/reports")}
               />
 
               <SidebarItem
                 icon={<Video size={20} />}
-                label="Feed da Comunidade"
+                label={t("app.sidebar.communityFeed")}
                 active={location.pathname === "/feed"}
                 onClick={() => navigate("/feed")}
               />
 
               <SidebarItem
                 icon={<Trophy size={20} />}
-                label="Gestão de Torneios"
+                label={t("app.sidebar.tournamentManagement")}
                 active={location.pathname === "/tournaments"}
                 onClick={() => navigate("/tournaments")}
               />
@@ -573,7 +605,7 @@ export default function App() {
             <>
               <SidebarItem
                 icon={<Bell size={20} />}
-                label="Notificações"
+                label={t("app.sidebar.notifications")}
                 active={location.pathname === "/notifications"}
                 onClick={() => navigate("/notifications")}
                 badge={invitesCount > 0 ? invitesCount : null}
@@ -581,7 +613,7 @@ export default function App() {
 
               <SidebarItem
                 icon={<Users size={20} />}
-                label="Minha Equipa"
+                label={t("app.sidebar.myTeam")}
                 active={location.pathname === "/team"}
                 onClick={() => navigate("/team")}
               />
@@ -589,7 +621,7 @@ export default function App() {
               {!teamLoading && myTeam && (
                 <SidebarItem
                   icon={<MessageSquare size={20} />}
-                  label="Chat da Equipa"
+                  label={t("app.sidebar.teamChat")}
                   active={location.pathname === "/chat"}
                   onClick={() => navigate("/chat")}
                 />
@@ -597,14 +629,14 @@ export default function App() {
 
               <SidebarItem
                 icon={<Video size={20} />}
-                label="Feed de Clipes"
+                label={t("app.sidebar.clipsFeed")}
                 active={location.pathname === "/feed"}
                 onClick={() => navigate("/feed")}
               />
 
               <SidebarItem
                 icon={<UserPlus size={20} />}
-                label="Recrutar Jogadores"
+                label={t("app.sidebar.recruitPlayers")}
                 active={location.pathname === "/recruit"}
                 onClick={() => navigate("/recruit")}
               />
@@ -612,7 +644,7 @@ export default function App() {
               {!teamLoading && !myTeam && (
                 <SidebarItem
                   icon={<Search size={20} />}
-                  label="Procurar Equipa"
+                  label={t("app.sidebar.findTeam")}
                   active={location.pathname === "/find-team"}
                   onClick={() => navigate("/find-team")}
                 />
@@ -620,7 +652,7 @@ export default function App() {
 
               <SidebarItem
                 icon={<Search size={20} />}
-                label="Procurar Scrims"
+                label={t("app.sidebar.findScrims")}
                 active={location.pathname === "/scrims"}
                 onClick={() => navigate("/scrims")}
               />
@@ -628,7 +660,7 @@ export default function App() {
               {!teamLoading && myTeam && (
                 <SidebarItem
                   icon={<Handshake size={20} />}
-                  label="Negociações"
+                  label={t("app.sidebar.negotiations")}
                   active={location.pathname === "/negotiations"}
                   onClick={() => navigate("/negotiations")}
                   badge={unreadNegotiations > 0 ? unreadNegotiations : null}
@@ -636,26 +668,26 @@ export default function App() {
               )}
 
               <div className="px-4 mt-8 mb-2 text-[10px] font-bold text-gray-600 uppercase tracking-widest">
-                Gestão
+                {t("app.sections.management")}
               </div>
 
               <SidebarItem
                 icon={<Swords size={20} />}
-                label="Treinos"
+                label={t("app.sidebar.trainings")}
                 active={location.pathname === "/trainings"}
                 onClick={() => navigate("/trainings")}
               />
 
               <SidebarItem
                 icon={<Map size={20} />}
-                label="Estratégias"
+                label={t("app.sidebar.strategies")}
                 active={location.pathname === "/strategies"}
                 onClick={() => navigate("/strategies")}
               />
 
               <SidebarItem
                 icon={<Trophy size={20} />}
-                label="Torneios"
+                label={t("app.sidebar.tournaments")}
                 active={location.pathname === "/tournaments"}
                 onClick={() => navigate("/tournaments")}
                 badge={showTournamentsBadge ? "1" : null}
@@ -663,7 +695,7 @@ export default function App() {
 
               <SidebarItem
                 icon={<Award size={20} />}
-                label="Sistema de Honra"
+                label={t("app.sidebar.honorSystem")}
                 active={location.pathname === "/honor"}
                 onClick={() => navigate("/honor")}
               />
@@ -675,7 +707,7 @@ export default function App() {
           {!isAdmin && (
             <SidebarItem
               icon={<User size={20} />}
-              label="Perfil"
+              label={t("app.sidebar.profile")}
               active={location.pathname === "/profile"}
               onClick={() => navigate("/profile")}
             />
@@ -683,20 +715,20 @@ export default function App() {
 
           <SidebarItem
             icon={<Settings size={20} />}
-            label="Definições"
+            label={t("app.sidebar.settings")}
             active={location.pathname === "/settings"}
             onClick={() => navigate("/settings")}
           />
 
           <SidebarItem
             icon={<RefreshCcw size={20} />}
-            label="Trocar de Conta"
+            label={t("app.sidebar.switchAccount")}
             onClick={openAccountModal}
           />
 
           <SidebarItem
             icon={<LogOut size={20} />}
-            label="Sair"
+            label={t("app.sidebar.logout")}
             color="text-red-500 hover:bg-red-500/10 hover:text-red-500"
             onClick={handleLogout}
           />
@@ -713,7 +745,7 @@ export default function App() {
             <Menu size={24} />
           </button>
 
-          <span className="font-bold tracking-wider">{headerTitle}</span>
+          <span className="font-bold tracking-wider">{translatedHeaderTitle}</span>
 
           <div className="w-8 h-8 rounded-full bg-red-500 flex items-center justify-center text-xs font-bold">
             {initial}
@@ -735,7 +767,7 @@ export default function App() {
               <div className="hidden md:flex justify-between items-center mb-12">
                 <div>
                   <h2 className="text-gray-400 text-sm font-medium">
-                    {isAdmin ? "Bem-vindo," : "Bem-vindo de volta,"}
+                    {isAdmin ? t("app.welcome") : t("app.welcomeBack")}
                   </h2>
 
                   <h1 className="text-3xl font-bold flex items-center gap-3">
