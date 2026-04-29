@@ -54,11 +54,15 @@ const SidebarItem = ({ icon, label, active = false, badge = null, onClick, color
     type="button"
     onClick={onClick}
     className={`w-full flex items-center gap-3 px-4 py-3 rounded-md transition-all duration-200 group relative overflow-hidden ${
-      active ? "bg-red-500/10 text-red-500" : "text-gray-400 hover:bg-gray-800 hover:text-white"
+      active
+        ? "bg-red-500/10 text-red-500"
+        : "text-gray-400 hover:bg-gray-800 hover:text-white"
     } ${color ? color : ""}`}
   >
     {active && <div className="absolute left-0 top-0 bottom-0 w-1 bg-red-500" />}
-    <span className={`${active ? "text-red-500" : "group-hover:text-white"}`}>{icon}</span>
+    <span className={`${active ? "text-red-500" : "group-hover:text-white"}`}>
+      {icon}
+    </span>
     <span className="font-medium text-sm tracking-wide">{label}</span>
     {badge && (
       <span className="ml-auto bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">
@@ -142,6 +146,7 @@ export default function App() {
 
       if (data?.session) {
         const accounts = JSON.parse(localStorage.getItem("vlr_saved_accounts") || "[]");
+
         const updated = accounts.map((acc) =>
           acc.email === account.email
             ? {
@@ -158,6 +163,8 @@ export default function App() {
     } catch (err) {
       console.error("Sessão expirou ou erro ao trocar:", err);
       goToAddAccount();
+    } finally {
+      setIsSwitching(false);
     }
   };
 
@@ -181,8 +188,15 @@ export default function App() {
 
     if (email) {
       const accounts = JSON.parse(localStorage.getItem("vlr_saved_accounts") || "[]");
+
       const updated = accounts.map((acc) =>
-        acc.email === email ? { ...acc, refreshToken: null, accessToken: null } : acc
+        acc.email === email
+          ? {
+              ...acc,
+              refreshToken: null,
+              accessToken: null,
+            }
+          : acc
       );
 
       localStorage.setItem("vlr_saved_accounts", JSON.stringify(updated));
@@ -205,27 +219,44 @@ export default function App() {
         setUserName(null);
         setCurrentUserEmail(null);
         setIsAdmin(false);
+        setRiotAccount(null);
         return;
       }
 
       setCurrentUserEmail(u.email);
 
-      const { data: prof } = await supabase
+      const { data: prof, error } = await supabase
         .from("profiles")
-        .select("username, is_admin")
+        .select("username, is_admin, riot_account, is_banned")
         .eq("id", u.id)
         .maybeSingle();
 
+      if (error) throw error;
+
+      if (prof?.is_banned) {
+        alert("🚫 A tua conta foi BANIDA PERMANENTEMENTE por violar as regras da comunidade.");
+        await supabase.auth.signOut();
+        resetSessionUi();
+        window.location.href = "/";
+        return;
+      }
+
       const finalName =
-        prof?.username || u.user_metadata?.username || u.user_metadata?.name || null;
+        prof?.username ||
+        u.user_metadata?.username ||
+        u.user_metadata?.name ||
+        u.email ||
+        "Utilizador";
 
       setUserName(finalName);
       setIsAdmin(prof?.is_admin || false);
+      setRiotAccount(prof?.riot_account || null);
     } catch (error) {
-      console.error("Erro:", error);
+      console.error("Erro ao carregar utilizador:", error);
       setUserName(null);
       setCurrentUserEmail(null);
       setIsAdmin(false);
+      setRiotAccount(null);
     } finally {
       setUserLoading(false);
     }
@@ -316,56 +347,48 @@ export default function App() {
       setInvitesCount((teamInvCount || 0) + scrimsReqCount + joinRequestsCount);
     } catch (error) {
       console.error("Erro a carregar equipa/convites:", error);
+      setMyTeam(null);
+      setIsCaptainOrVice(false);
     } finally {
       setTeamLoading(false);
     }
   };
 
+  const syncAppData = async () => {
+    const { data: userRes } = await supabase.auth.getUser();
+    const u = userRes?.user;
+
+    if (!u) {
+      resetSessionUi();
+      return;
+    }
+
+    await Promise.all([loadUserName(), loadMyTeamAndInvites()]);
+  };
+
   useEffect(() => {
     let mounted = true;
 
-    const sync = async () => {
-      const { data: userRes } = await supabase.auth.getUser();
-      const u = userRes?.user;
-
+    const run = async () => {
       if (!mounted) return;
-
-      if (!u) {
-        resetSessionUi();
-        return;
-      }
-
-      try {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("riot_account, is_admin, is_banned")
-          .eq("id", u.id)
-          .maybeSingle();
-
-        if (profile?.is_banned) {
-          alert("🚫 A tua conta foi BANIDA PERMANENTEMENTE por violar as regras da comunidade.");
-          await supabase.auth.signOut();
-          window.location.href = "/";
-          return;
-        }
-
-        if (profile?.riot_account) setRiotAccount(profile.riot_account);
-        setIsAdmin(profile?.is_admin || false);
-      } catch (e) {
-        console.error("Erro a ler conta Riot:", e);
-      }
-
-      await Promise.all([loadUserName(), loadMyTeamAndInvites()]);
+      await syncAppData();
     };
 
-    sync();
+    run();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(() => {
+      run();
+    });
 
     return () => {
       mounted = false;
+      subscription?.unsubscribe();
     };
   }, [teamRefreshKey]);
 
-  const displayName = riotAccount ? riotAccount.name : userLoading ? "..." : userName ?? "Admin";
+  const displayName = riotAccount?.name || (userLoading ? "..." : userName ?? "Utilizador");
   const initial = (displayName?.trim()?.[0] || "U").toUpperCase();
 
   const headerTitle = useMemo(() => {
@@ -391,6 +414,7 @@ export default function App() {
       "/forgot-password": "RECUPERAR PALAVRA-PASSE",
     };
 
+    if (location.pathname.startsWith("/profile/")) return "PERFIL";
     return map[location.pathname] || "DASHBOARD";
   }, [location.pathname]);
 
@@ -424,41 +448,50 @@ export default function App() {
             </h2>
 
             <div className="space-y-2 max-h-64 overflow-y-auto custom-scrollbar pr-1">
-              {savedAccounts.map((acc, idx) => {
-                const isActive = acc.email === currentUserEmail;
+              {savedAccounts.length === 0 ? (
+                <p className="text-sm text-gray-500 text-center py-6">
+                  Ainda não tens contas guardadas.
+                </p>
+              ) : (
+                savedAccounts.map((acc, idx) => {
+                  const isActive = acc.email === currentUserEmail;
 
-                return (
-                  <div
-                    key={idx}
-                    onClick={() => !isActive && switchToExistingAccount(acc)}
-                    className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all ${
-                      isActive
-                        ? "bg-red-500/10 border border-red-500/30"
-                        : "bg-neutral-900 border border-neutral-800 hover:bg-neutral-800 hover:border-gray-600"
-                    }`}
-                  >
-                    <div className="w-10 h-10 rounded-full bg-red-500 flex items-center justify-center font-bold text-white shadow-sm shadow-red-500/20">
-                      {(acc.username?.[0] || acc.email?.[0] || "U").toUpperCase()}
+                  return (
+                    <div
+                      key={idx}
+                      onClick={() => !isActive && switchToExistingAccount(acc)}
+                      className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all ${
+                        isActive
+                          ? "bg-red-500/10 border border-red-500/30"
+                          : "bg-neutral-900 border border-neutral-800 hover:bg-neutral-800 hover:border-gray-600"
+                      }`}
+                    >
+                      <div className="w-10 h-10 rounded-full bg-red-500 flex items-center justify-center font-bold text-white shadow-sm shadow-red-500/20">
+                        {(acc.username?.[0] || acc.email?.[0] || "U").toUpperCase()}
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-sm text-white truncate">
+                          {acc.username || "Utilizador"}
+                        </p>
+                        <p className="text-xs text-gray-500 truncate">{acc.email}</p>
+                      </div>
+
+                      {isActive && (
+                        <CheckCircle2 size={18} className="text-red-500 ml-2" />
+                      )}
                     </div>
-
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold text-sm text-white truncate">
-                        {acc.username || "Utilizador"}
-                      </p>
-                      <p className="text-xs text-gray-500 truncate">{acc.email}</p>
-                    </div>
-
-                    {isActive && <CheckCircle2 size={18} className="text-red-500 ml-2" />}
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
             </div>
 
             <button
               onClick={goToAddAccount}
               className="mt-4 w-full py-3.5 rounded-xl border border-dashed border-gray-700 hover:border-gray-500 hover:bg-neutral-900 flex items-center justify-center gap-2 font-medium text-sm text-gray-300 hover:text-white transition-all"
             >
-              <Plus size={18} /> Adicionar nova conta
+              <Plus size={18} />
+              Adicionar nova conta
             </button>
           </div>
         </div>
@@ -484,7 +517,9 @@ export default function App() {
           </div>
 
           <div>
-            <h1 className="font-bold text-xl tracking-wider uppercase leading-none">Valorant</h1>
+            <h1 className="font-bold text-xl tracking-wider uppercase leading-none">
+              Valorant
+            </h1>
             <span className="text-[10px] text-gray-500 uppercase tracking-[0.2em] font-bold">
               Team Manager
             </span>
@@ -519,12 +554,14 @@ export default function App() {
                 active={location.pathname === "/admin/reports"}
                 onClick={() => navigate("/admin/reports")}
               />
+
               <SidebarItem
                 icon={<Video size={20} />}
                 label="Feed da Comunidade"
                 active={location.pathname === "/feed"}
                 onClick={() => navigate("/feed")}
               />
+
               <SidebarItem
                 icon={<Trophy size={20} />}
                 label="Gestão de Torneios"
@@ -668,7 +705,11 @@ export default function App() {
 
       <main className="flex-1 flex flex-col min-w-0">
         <div className="md:hidden flex items-center justify-between p-4 border-b border-gray-800 bg-[#111]">
-          <button onClick={() => setSidebarOpen(true)} className="text-gray-300" type="button">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="text-gray-300"
+            type="button"
+          >
             <Menu size={24} />
           </button>
 
@@ -741,7 +782,10 @@ export default function App() {
               }
             />
 
-            <Route path="/chat" element={<ChatPage myTeam={myTeam} userName={displayName} />} />
+            <Route
+              path="/chat"
+              element={<ChatPage myTeam={myTeam} userName={displayName} />}
+            />
 
             <Route
               path="/negotiations"
