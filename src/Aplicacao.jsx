@@ -311,7 +311,8 @@ export default function App() {
       if (teamId) {
         const { data: team } = await supabase
           .from("teams")
-          .select("id,name,color_id,color_hex,owner_id,created_at,logo_url,region")
+          // AQUI ESTÁ A CORREÇÃO: honor_score adicionado ao SELECT
+          .select("id,name,color_id,color_hex,owner_id,created_at,logo_url,region,honor_score")
           .eq("id", teamId)
           .maybeSingle();
 
@@ -479,9 +480,6 @@ export default function App() {
   const isUpdatePassword = location.pathname === "/update-password";
   const isForgotPassword = location.pathname === "/forgot-password";
 
-  // 🚀 MÁGICA VISUAL AQUI:
-  // Se for uma das páginas de palavra-passe, retornamos APENAS a rota, 
-  // sem o menu lateral nem o cabeçalho do painel!
   const isStandalonePage = isUpdatePassword || isForgotPassword;
   
   if (isStandalonePage) {
@@ -502,7 +500,6 @@ export default function App() {
     );
   }
 
-  // Se NÃO FOR as páginas de palavra passe, carrega a aplicação normal:
   return (
     <div className="flex min-h-screen bg-[#0f1112] text-white font-sans selection:bg-red-500 selection:text-white relative">
       {showAccountModal && (

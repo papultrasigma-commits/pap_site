@@ -15,12 +15,13 @@ import {
   Search,
   X,
   Send,
+  Star,
 } from "lucide-react";
 
 const replaceTemplate = (template, values = {}) =>
   Object.entries(values).reduce(
     (text, [key, value]) => text.replaceAll(`{${key}}`, String(value)),
-    template
+    template || ""
   );
 
 const RoleBadge = ({ role, labels }) => {
@@ -46,14 +47,15 @@ const RoleBadge = ({ role, labels }) => {
   );
 };
 
-const MiniStat = ({ icon, label, value }) => (
+const MiniStat = ({ icon, label, value, subValue }) => (
   <div className="bg-[#141617] border border-gray-800 rounded-xl p-5 flex items-center gap-4 hover:border-gray-700 transition-colors">
     <div className="w-12 h-12 shrink-0 rounded-xl bg-[#0f1112] border border-gray-800 flex items-center justify-center text-gray-300 shadow-inner">
       {icon}
     </div>
     <div className="min-w-0 flex-1">
-      <div className="text-2xl font-black text-white leading-none truncate">
+      <div className="text-2xl font-black text-white leading-none truncate flex items-baseline gap-2">
         {value}
+        {subValue && <span className="text-sm font-medium text-gray-500">{subValue}</span>}
       </div>
       <div className="text-[10px] font-bold uppercase tracking-widest text-gray-500 mt-1.5 truncate">
         {label}
@@ -70,6 +72,7 @@ const MemberRow = ({
   myRole,
   onUpdateRole,
   onKick,
+  onTransferLeadership,
   copy,
 }) => {
   let displayUsername = copy.userFallback;
@@ -98,7 +101,7 @@ const MemberRow = ({
   const isTargetVice = member?.role === "vice";
 
   return (
-    <div className="bg-[#141617] border border-gray-800 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:border-gray-700 transition">
+    <div className="bg-[#141617] border border-gray-800 rounded-xl p-4 flex flex-col xl:flex-row xl:items-center justify-between gap-4 hover:border-gray-700 transition">
       <div className="flex items-center gap-4 min-w-0">
         <div className="w-10 h-10 shrink-0 rounded-full bg-red-500/90 flex items-center justify-center font-black text-white shadow-sm overflow-hidden">
           {member?.profiles?.avatar_url ? (
@@ -128,7 +131,16 @@ const MemberRow = ({
       </div>
 
       {isOwner && !isMe && !isTargetOwner && (
-        <div className="flex items-center gap-3 pt-3 md:pt-0 border-t border-gray-800 md:border-t-0 mt-1 md:mt-0 shrink-0">
+        <div className="flex flex-wrap items-center gap-2 pt-3 xl:pt-0 border-t border-gray-800 xl:border-t-0 mt-1 xl:mt-0 shrink-0">
+          
+          <button
+            onClick={() => onTransferLeadership(member.user_id, displayUsername)}
+            className="text-xs font-medium text-yellow-500 hover:text-yellow-400 flex items-center gap-1.5 transition bg-yellow-500/10 px-3 py-1.5 rounded-lg border border-yellow-500/20 hover:border-yellow-500/40"
+            title={copy.tooltips.transferLeadership}
+          >
+            <Trophy size={14} /> {copy.actions.transferLeadership}
+          </button>
+
           {isTargetVice ? (
             <button
               onClick={() => onUpdateRole(member.user_id, "member")}
@@ -205,11 +217,13 @@ export default function Team({
       createTeam: t("teamPage.actions.createTeam"),
       locatingAgent: t("teamPage.actions.locatingAgent"),
       sendOfficialContract: t("teamPage.actions.sendOfficialContract"),
+      transferLeadership: "Promover",
     },
     tooltips: {
       demoteToMember: t("teamPage.tooltips.demoteToMember"),
       promoteToViceCaptain: t("teamPage.tooltips.promoteToViceCaptain"),
       removeFromTeam: t("teamPage.tooltips.removeFromTeam"),
+      transferLeadership: "Tornar este membro o novo líder da equipa",
     },
     messages: {
       loadMembersError: t("teamPage.messages.loadMembersError"),
@@ -222,8 +236,11 @@ export default function Team({
       contractSent: t("teamPage.messages.contractSent"),
       recruitPlayerError: t("teamPage.messages.recruitPlayerError"),
       leaveConfirm: t("teamPage.messages.leaveConfirm"),
-      leaderMustTransfer: t("teamPage.messages.leaderMustTransfer"),
+      leaderMustTransfer: "Passa a liderança a outro membro antes de saíres da equipa.",
       leaveError: t("teamPage.messages.leaveError"),
+      transferConfirm: "Tens a certeza que queres promover {name} a líder? Vais passar a ser um membro normal.",
+      transferError: "Erro ao transferir a liderança: {message}",
+      transferSuccess: "Liderança transferida com sucesso!",
     },
     empty: {
       title: t("teamPage.empty.title"),
@@ -236,6 +253,7 @@ export default function Team({
       activeMembers: t("teamPage.stats.activeMembers"),
       winsScrims: t("teamPage.stats.winsScrims"),
       averageRank: t("teamPage.stats.averageRank"),
+      honorLevel: "Nível de Honra",
     },
     members: {
       title: t("teamPage.members.title"),
@@ -246,12 +264,32 @@ export default function Team({
       title: t("teamPage.modal.title"),
       description: t("teamPage.modal.description"),
       platformUsername: t("teamPage.modal.platformUsername"),
-      platformUsernamePlaceholder: t(
-        "teamPage.modal.platformUsernamePlaceholder"
-      ),
+      platformUsernamePlaceholder: t("teamPage.modal.platformUsernamePlaceholder"),
       optionalMessage: t("teamPage.modal.optionalMessage"),
       messagePlaceholder: t("teamPage.modal.messagePlaceholder"),
     },
+  };
+
+  // Matemática exata dos níveis de Honra: 0 a 100 pontos para cada nível
+  const getHonorDisplay = (score) => {
+    // Começa a 250 (Nível 3, 50 pontos)
+    const absoluteScore = score ?? 250; 
+    
+    let level = Math.floor(absoluteScore / 100) + 1;
+    let points = absoluteScore % 100;
+    
+    // Bloqueia no Nível 5 (Máximo)
+    if (level >= 5) {
+      level = 5;
+      points = absoluteScore >= 500 ? 100 : points; 
+    }
+    // Bloqueia no Nível 1 (Mínimo)
+    if (level < 1) {
+      level = 1;
+      points = 0;
+    }
+    
+    return { level, points };
   };
 
   const loadTeamAndMembers = async () => {
@@ -291,7 +329,7 @@ export default function Team({
 
     const { data: teamData, error: teamError } = await supabase
       .from("teams")
-      .select("id,name,color_id,color_hex,owner_id,created_at,logo_url,region")
+      .select("id,name,color_id,color_hex,owner_id,created_at,logo_url,region,honor_score")
       .eq("id", teamId)
       .maybeSingle();
 
@@ -369,6 +407,32 @@ export default function Team({
       return;
     }
 
+    loadTeamAndMembers();
+  };
+
+  const handleTransferLeadership = async (targetUserId, memberName) => {
+    if (
+      !window.confirm(
+        replaceTemplate(copy.messages.transferConfirm, { name: memberName })
+      )
+    ) {
+      return;
+    }
+
+    const { error } = await supabase.rpc('transferir_lideranca', {
+      p_team_id: team.id,
+      p_novo_lider_id: targetUserId,
+      p_lider_atual_id: authId
+    });
+
+    if (error) {
+      alert(
+        replaceTemplate(copy.messages.transferError, { message: error.message })
+      );
+      return;
+    }
+
+    alert(copy.messages.transferSuccess);
     loadTeamAndMembers();
   };
 
@@ -509,6 +573,9 @@ export default function Team({
   }
 
   const membersCount = members.length || 0;
+  
+  // Extrai o nível e os pontos da pontuação global da equipa
+  const { level: currentHonorLevel, points: currentHonorPoints } = getHonorDisplay(team.honor_score);
 
   return (
     <div className="animate-fade-in max-w-6xl mx-auto pb-10">
@@ -554,6 +621,9 @@ export default function Team({
           </div>
 
           <div className="flex flex-wrap gap-3 shrink-0 relative z-10 md:self-end">
+            
+            {/* O BOTÃO DAR HONRA FOI REMOVIDO DAQUI */}
+
             {(myRole === "owner" || myRole === "vice") && (
               <button
                 onClick={() => onEditTeam?.(team)}
@@ -590,7 +660,7 @@ export default function Team({
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         <MiniStat
           icon={<Users size={20} />}
           label={copy.stats.activeMembers}
@@ -605,6 +675,13 @@ export default function Team({
           icon={<TrendingUp size={20} className="text-blue-500" />}
           label={copy.stats.averageRank}
           value="—"
+        />
+        {/* A ESTATÍSTICA DA HONRA CONTINUA AQUI PARA VERES OS PONTOS E NÍVEL DA TUA EQUIPA */}
+        <MiniStat
+          icon={<Star size={20} className="text-purple-400" />}
+          label={copy.stats.honorLevel}
+          value={`Lvl ${currentHonorLevel}`}
+          subValue={`${currentHonorPoints} pts`}
         />
       </div>
 
@@ -637,6 +714,7 @@ export default function Team({
                 myRole={myRole}
                 onUpdateRole={handleUpdateRole}
                 onKick={handleKickMember}
+                onTransferLeadership={handleTransferLeadership}
                 copy={copy}
               />
             );

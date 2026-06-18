@@ -54,7 +54,7 @@ export default function Honor({ myTeam }) {
   const { language, t } = useLanguage();
   const locale = language === "en" ? "en-GB" : "pt-PT";
 
-  const [teamHonor, setTeamHonor] = useState(50);
+  const [teamHonor, setTeamHonor] = useState(250); // Começa com 250 (Nível 3, 50pts)
   const [reviewsReceived, setReviewsReceived] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -133,6 +133,25 @@ export default function Honor({ myTeam }) {
     },
   };
 
+  // Matemática exata dos níveis de Honra: 0 a 100 pontos para cada nível
+  const getHonorDisplay = (score) => {
+    const absoluteScore = score ?? 250; 
+    let level = Math.floor(absoluteScore / 100) + 1;
+    let points = absoluteScore % 100;
+    
+    // Bloqueia no Nível 5 (Máximo)
+    if (level >= 5) {
+      level = 5;
+      points = absoluteScore >= 500 ? 100 : points; 
+    }
+    // Bloqueia no Nível 1 (Mínimo)
+    if (level < 1) {
+      level = 1;
+      points = 0;
+    }
+    return { level, points };
+  };
+
   useEffect(() => {
     if (myTeam) {
       fetchHonorData();
@@ -194,7 +213,8 @@ export default function Honor({ myTeam }) {
 
     setSubmitting(true);
     try {
-      const { error } = await supabase.from("team_reviews").insert([
+      // 1. Guardar a Review na base de dados
+      const { error: reviewError } = await supabase.from("team_reviews").insert([
         {
           reviewer_team_id: myTeam.id,
           target_team_id: selectedTeam.id,
@@ -204,13 +224,19 @@ export default function Honor({ myTeam }) {
         },
       ]);
 
-      if (error) throw error;
+      if (reviewError) throw reviewError;
+
+      // 2. AUMENTAR A HONRA DA EQUIPA AVALIADA EM 10 PONTOS (Se a avaliação for positiva!)
+      if (reviewForm.is_positive) {
+         const { error: honorError } = await supabase.rpc('dar_honra_equipa', { p_team_id: selectedTeam.id });
+         if (honorError) console.error("Erro ao dar honra:", honorError);
+      }
 
       alert(copy.messages.success);
       setIsModalOpen(false);
       setSelectedTeam(null);
       setReviewForm({ is_positive: true, tags: [], comment: "" });
-      fetchHonorData();
+      fetchHonorData(); // Recarrega os teus dados
     } catch (err) {
       console.error(err);
       alert(copy.messages.error);
@@ -230,37 +256,40 @@ export default function Honor({ myTeam }) {
     return scope[key] || tag;
   };
 
+  // Lógica corrigida do Título Baseado no Nível Exato
+  const { level: currentHonorLevel, points: currentHonorPoints } = getHonorDisplay(teamHonor);
+
   let honorTier = {
-    name: copy.tiers.unknown,
-    color: "text-gray-500",
-    bg: "bg-gray-500",
+    name: copy.tiers.neutral, // Level 3 default
+    color: "text-gray-400",
+    bg: "bg-gray-400",
     icon: <Shield size={32} />,
   };
 
-  if (teamHonor < 30) {
+  if (currentHonorLevel <= 1) {
     honorTier = {
-      name: copy.tiers.dishonorable,
+      name: copy.tiers.dishonorable, // Tóxico
       color: "text-red-500",
       bg: "bg-red-500",
       icon: <ThumbsDown size={32} />,
     };
-  } else if (teamHonor <= 60) {
+  } else if (currentHonorLevel === 2) {
     honorTier = {
-      name: copy.tiers.neutral,
-      color: "text-gray-400",
-      bg: "bg-gray-400",
-      icon: <Shield size={32} />,
+      name: copy.tiers.dishonorable, 
+      color: "text-orange-500",
+      bg: "bg-orange-500",
+      icon: <ThumbsDown size={32} />,
     };
-  } else if (teamHonor <= 85) {
+  } else if (currentHonorLevel === 4) {
     honorTier = {
-      name: copy.tiers.honorable,
+      name: copy.tiers.honorable, // Honrado
       color: "text-green-500",
       bg: "bg-green-500",
       icon: <ThumbsUp size={32} />,
     };
-  } else if (teamHonor > 85) {
+  } else if (currentHonorLevel >= 5) {
     honorTier = {
-      name: copy.tiers.exemplary,
+      name: copy.tiers.exemplary, // Nível Máximo
       color: "text-yellow-400",
       bg: "bg-yellow-400",
       icon: <Star size={32} />,
@@ -320,10 +349,10 @@ export default function Honor({ myTeam }) {
                 {honorTier.icon}
               </div>
 
+              {/* MOSTRA NÍVEL E PONTOS COMO NO EQUIPA.JSX */}
               <h2 className="text-4xl font-black text-white mb-1">
-                {teamHonor}{" "}
-                <span className="text-lg text-gray-500 font-medium">
-                  {copy.card.points}
+                Lvl {currentHonorLevel} <span className="text-lg text-gray-500 font-medium">
+                  - {currentHonorPoints} pts
                 </span>
               </h2>
               <p className={`text-lg font-bold uppercase tracking-widest ${honorTier.color}`}>
@@ -333,7 +362,7 @@ export default function Honor({ myTeam }) {
               <div className="w-full bg-gray-800 h-2 rounded-full mt-6 overflow-hidden">
                 <div
                   className={`h-full ${honorTier.bg} transition-all duration-1000`}
-                  style={{ width: `${Math.min(100, Math.max(0, teamHonor))}%` }}
+                  style={{ width: `${currentHonorPoints}%` }}
                 />
               </div>
               <p className="text-xs text-gray-500 mt-4">{copy.card.description}</p>

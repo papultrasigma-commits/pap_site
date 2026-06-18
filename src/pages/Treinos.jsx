@@ -296,7 +296,7 @@ export default function TrainingsView({ myTeam }) {
 
   if (loading) {
     return (
-      <div className="absolute inset-0 w-full h-full bg-[#0f1923] flex items-center justify-center">
+      <div className="w-full py-20 flex items-center justify-center">
         <div className="text-white font-bold text-xl animate-pulse">
           {copy.loading}
         </div>
@@ -306,8 +306,8 @@ export default function TrainingsView({ myTeam }) {
 
   if (!myTeam) {
     return (
-      <div className="absolute inset-0 w-full h-full bg-[#0f1923] p-8">
-        <div className="bg-[#181a1b] border border-gray-800 rounded-xl p-6 text-center max-w-2xl mx-auto mt-20">
+      <div className="w-full py-20 flex items-center justify-center">
+        <div className="bg-[#181a1b] border border-gray-800 rounded-xl p-6 text-center max-w-2xl mx-auto">
           <ShieldAlert size={48} className="mx-auto text-red-500 mb-4" />
           <h2 className="text-2xl font-bold text-white mb-2">
             {copy.noTeam.title}
@@ -329,182 +329,181 @@ export default function TrainingsView({ myTeam }) {
       60
   );
 
+  // Aqui a classe absolute e h-full foram removidas para a página ser fluida como as outras
   return (
-    <div className="absolute inset-0 w-full h-full bg-[#0f1923] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
-      <div className="min-h-full w-full p-8 font-sans text-white">
-        <div className="max-w-7xl mx-auto pb-20">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <span className="w-2 h-2 rounded-full bg-[#ff4655] animate-pulse" />
-                <span className="text-xs font-bold text-[#ff4655] uppercase tracking-widest">
-                  {copy.header.eyebrow}
-                </span>
-              </div>
-              <h1 className="text-4xl font-black tracking-tight">
-                {copy.header.title}
-              </h1>
-              <p className="text-slate-400 mt-2 max-w-xl">
-                {copy.header.description}
-              </p>
-            </div>
-
-            {canManageTrainings && (
-              <button
-                onClick={() => setIsModalOpen(true)}
-                className="bg-[#ff4655] hover:bg-[#ff2b3f] text-white px-6 py-3 rounded-lg font-bold uppercase text-xs tracking-wider flex items-center gap-2 transition-all shadow-[0_0_15px_rgba(255,70,85,0.3)] hover:shadow-[0_0_25px_rgba(255,70,85,0.5)] transform hover:-translate-y-0.5 active:translate-y-0"
-              >
-                <Plus size={18} strokeWidth={3} />
-                {copy.header.newTraining}
-              </button>
-            )}
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-            <StatCard
-              icon={<Calendar size={20} className="text-blue-400" />}
-              colorClass="bg-blue-500/10 border border-blue-500/20"
-              value={scheduledSessions}
-              label={copy.stats.scheduled}
-            />
-            <StatCard
-              icon={<CheckCircle2 size={20} className="text-green-400" />}
-              colorClass="bg-green-500/10 border border-green-500/20"
-              value={completedSessions}
-              label={copy.stats.completed}
-            />
-            <StatCard
-              icon={<Clock size={20} className="text-purple-400" />}
-              colorClass="bg-purple-500/10 border border-purple-500/20"
-              value={`${totalHours}h`}
-              label={copy.stats.totalHours}
-            />
-          </div>
-
-          <div className="bg-[#181a1b] border border-white/5 rounded-2xl overflow-hidden shadow-2xl">
-            <div className="p-6 border-b border-white/5 flex justify-between items-center bg-[#1f2937]/30">
-              <div className="flex items-center gap-3">
-                <div className="w-1 h-6 bg-[#ff4655] rounded-full" />
-                <h3 className="font-bold text-lg">{copy.list.title}</h3>
-              </div>
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">
-                {sessions.length} {copy.list.totalSessions}
+    <div className="animate-fade-in w-full pb-10">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="w-2 h-2 rounded-full bg-[#ff4655] animate-pulse" />
+              <span className="text-xs font-bold text-[#ff4655] uppercase tracking-widest">
+                {copy.header.eyebrow}
               </span>
             </div>
+            <h1 className="text-4xl font-black tracking-tight">
+              {copy.header.title}
+            </h1>
+            <p className="text-slate-400 mt-2 max-w-xl">
+              {copy.header.description}
+            </p>
+          </div>
 
-            <div className="p-4 space-y-2">
-              {sessions.map((session) => {
-                const isCompleted = session.status === STATUS_COMPLETED;
+          {canManageTrainings && (
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="bg-[#ff4655] hover:bg-[#ff2b3f] text-white px-6 py-3 rounded-lg font-bold uppercase text-xs tracking-wider flex items-center gap-2 transition-all shadow-[0_0_15px_rgba(255,70,85,0.3)] hover:shadow-[0_0_25px_rgba(255,70,85,0.5)] transform hover:-translate-y-0.5 active:translate-y-0"
+            >
+              <Plus size={18} strokeWidth={3} />
+              {copy.header.newTraining}
+            </button>
+          )}
+        </div>
 
-                return (
-                  <div
-                    key={session.id}
-                    className={`group flex items-center justify-between p-4 rounded-xl border transition-all ${
-                      isCompleted
-                        ? "border-green-500/20 bg-[#1f2937]/40 opacity-70"
-                        : "border-transparent hover:border-slate-700 hover:bg-[#1f2937] bg-[#141617]"
-                    }`}
-                  >
-                    <div className="flex items-center gap-5 overflow-hidden">
-                      <div
-                        className={`w-12 h-12 rounded-lg bg-[#0a0f14] border border-white/5 flex items-center justify-center transition-all shrink-0 ${
-                          isCompleted
-                            ? "text-green-500 border-green-500/30"
-                            : "group-hover:border-[#ff4655]/50"
-                        }`}
-                      >
-                        {getIcon(session.type)}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <h4
-                            className={`font-bold text-lg truncate ${
-                              isCompleted
-                                ? "text-green-400 line-through"
-                                : "text-white"
-                            }`}
-                          >
-                            {session.title}
-                          </h4>
-                          {isCompleted && (
-                            <span className="bg-green-500/20 text-green-400 text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-widest border border-green-500/30">
-                              {copy.list.done}
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-3 text-sm text-slate-400 mt-0.5">
-                          <span className="flex items-center gap-1.5 capitalize">
-                            <CalendarClock size={14} /> {formatDate(session.date)}
-                          </span>
-                          <span className="w-1 h-1 rounded-full bg-slate-600" />
-                          <span>{session.duration} min</span>
-                        </div>
-                      </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          <StatCard
+            icon={<Calendar size={20} className="text-blue-400" />}
+            colorClass="bg-blue-500/10 border border-blue-500/20"
+            value={scheduledSessions}
+            label={copy.stats.scheduled}
+          />
+          <StatCard
+            icon={<CheckCircle2 size={20} className="text-green-400" />}
+            colorClass="bg-green-500/10 border border-green-500/20"
+            value={completedSessions}
+            label={copy.stats.completed}
+          />
+          <StatCard
+            icon={<Clock size={20} className="text-purple-400" />}
+            colorClass="bg-purple-500/10 border border-purple-500/20"
+            value={`${totalHours}h`}
+            label={copy.stats.totalHours}
+          />
+        </div>
+
+        <div className="bg-[#181a1b] border border-gray-800 rounded-2xl overflow-hidden shadow-2xl">
+          <div className="p-6 border-b border-gray-800 flex justify-between items-center bg-[#0f1112]">
+            <div className="flex items-center gap-3">
+              <div className="w-1 h-6 bg-[#ff4655] rounded-full" />
+              <h3 className="font-bold text-lg">{copy.list.title}</h3>
+            </div>
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+              {sessions.length} {copy.list.totalSessions}
+            </span>
+          </div>
+
+          <div className="p-4 space-y-2">
+            {sessions.map((session) => {
+              const isCompleted = session.status === STATUS_COMPLETED;
+
+              return (
+                <div
+                  key={session.id}
+                  className={`group flex items-center justify-between p-4 rounded-xl border transition-all ${
+                    isCompleted
+                      ? "border-green-500/20 bg-[#141617] opacity-70"
+                      : "border-transparent hover:border-gray-700 hover:bg-gray-800 bg-[#0f1112]"
+                  }`}
+                >
+                  <div className="flex items-center gap-5 overflow-hidden">
+                    <div
+                      className={`w-12 h-12 rounded-lg bg-[#0a0f14] border border-gray-800 flex items-center justify-center transition-all shrink-0 ${
+                        isCompleted
+                          ? "text-green-500 border-green-500/30"
+                          : "group-hover:border-[#ff4655]/50"
+                      }`}
+                    >
+                      {getIcon(session.type)}
                     </div>
-
-                    <div className="flex items-center gap-6 shrink-0 pl-4">
-                      <div className="text-right hidden sm:block">
-                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-1">
-                          {copy.list.focus}
-                        </span>
-                        <span
-                          className={`inline-block px-2 py-1 rounded text-xs font-bold border ${
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h4
+                          className={`font-bold text-lg truncate ${
                             isCompleted
-                              ? "text-green-400 bg-green-500/10 border-green-500/20"
-                              : "text-[#00f0ff] bg-[#00f0ff]/10 border-[#00f0ff]/20"
+                              ? "text-green-400 line-through"
+                              : "text-white"
                           }`}
                         >
-                          {session.tag || copy.list.general}
-                        </span>
+                          {session.title}
+                        </h4>
+                        {isCompleted && (
+                          <span className="bg-green-500/20 text-green-400 text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-widest border border-green-500/30">
+                            {copy.list.done}
+                          </span>
+                        )}
                       </div>
-
-                      {canManageTrainings && (
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => handleToggleComplete(session)}
-                            className={`p-2 rounded-lg transition-colors ${
-                              isCompleted
-                                ? "text-green-400 bg-green-500/10 hover:bg-green-500/20"
-                                : "text-slate-600 hover:text-green-400 hover:bg-green-500/10"
-                            }`}
-                            title={
-                              isCompleted
-                                ? copy.actions.unmarkComplete
-                                : copy.actions.markComplete
-                            }
-                          >
-                            <CheckCircle2 size={18} />
-                          </button>
-
-                          <button
-                            onClick={() => handleDelete(session.id)}
-                            className="p-2 text-slate-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
-                            title={copy.actions.deleteTraining}
-                          >
-                            <Trash2 size={18} />
-                          </button>
-                        </div>
-                      )}
+                      <div className="flex items-center gap-3 text-sm text-slate-400 mt-0.5">
+                        <span className="flex items-center gap-1.5 capitalize">
+                          <CalendarClock size={14} /> {formatDate(session.date)}
+                        </span>
+                        <span className="w-1 h-1 rounded-full bg-slate-600" />
+                        <span>{session.duration} min</span>
+                      </div>
                     </div>
                   </div>
-                );
-              })}
 
-              {sessions.length === 0 && (
-                <div className="text-center py-20 opacity-50">
-                  <Calendar size={48} className="mx-auto mb-4 text-slate-600" />
-                  <p>{copy.list.empty}</p>
+                  <div className="flex items-center gap-6 shrink-0 pl-4">
+                    <div className="text-right hidden sm:block">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-1">
+                        {copy.list.focus}
+                      </span>
+                      <span
+                        className={`inline-block px-2 py-1 rounded text-xs font-bold border ${
+                          isCompleted
+                            ? "text-green-400 bg-green-500/10 border-green-500/20"
+                            : "text-[#00f0ff] bg-[#00f0ff]/10 border-[#00f0ff]/20"
+                        }`}
+                      >
+                        {session.tag || copy.list.general}
+                      </span>
+                    </div>
+
+                    {canManageTrainings && (
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleToggleComplete(session)}
+                          className={`p-2 rounded-lg transition-colors ${
+                            isCompleted
+                              ? "text-green-400 bg-green-500/10 hover:bg-green-500/20"
+                              : "text-slate-600 hover:text-green-400 hover:bg-green-500/10"
+                          }`}
+                          title={
+                            isCompleted
+                              ? copy.actions.unmarkComplete
+                              : copy.actions.markComplete
+                          }
+                        >
+                          <CheckCircle2 size={18} />
+                        </button>
+
+                        <button
+                          onClick={() => handleDelete(session.id)}
+                          className="p-2 text-slate-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                          title={copy.actions.deleteTraining}
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              )}
-            </div>
+              );
+            })}
+
+            {sessions.length === 0 && (
+              <div className="text-center py-20 opacity-50">
+                <Calendar size={48} className="mx-auto mb-4 text-slate-600" />
+                <p>{copy.list.empty}</p>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
       {isModalOpen && canManageTrainings && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-[#181a1b] border border-white/10 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
-            <div className="p-6 border-b border-white/5 flex justify-between items-center bg-[#1f2937]/50">
+          <div className="bg-[#181a1b] border border-gray-800 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
+            <div className="p-6 border-b border-gray-800 flex justify-between items-center bg-[#0f1112]">
               <h3 className="font-bold text-lg text-white">{copy.modal.title}</h3>
               <button
                 onClick={() => setIsModalOpen(false)}
@@ -605,7 +604,7 @@ export default function TrainingsView({ myTeam }) {
                 />
               </div>
             </div>
-            <div className="p-6 bg-[#1f2937]/30 border-t border-white/5 flex justify-end gap-3">
+            <div className="p-6 bg-[#0f1112] border-t border-gray-800 flex justify-end gap-3">
               <button
                 onClick={() => setIsModalOpen(false)}
                 className="px-5 py-2.5 rounded-lg text-slate-400 hover:text-white font-bold text-sm"
