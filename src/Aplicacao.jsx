@@ -597,11 +597,8 @@ export default function App() {
 
           <div>
             <h1 className="font-bold text-xl tracking-wider uppercase leading-none">
-              Valorant
+              PWS
             </h1>
-            <span className="text-[10px] text-gray-500 uppercase tracking-[0.2em] font-bold">
-              Team Manager
-            </span>
           </div>
 
           <button

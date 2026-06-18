@@ -183,21 +183,17 @@ nav{background:rgba(15,20,25,.98);padding:1.2rem 5%;display:flex;justify-content
 .honor-way-icon{width:50px;height:50px;background:rgba(255,184,0,.1);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0}
 .honor-way-info h4{color:#fff;margin-bottom:.3rem;font-size:1.1rem}
 .honor-way-info p{color:#8a8a8a;font-size:.9rem;line-height:1.5}
-.honor-benefits{background:rgba(0,255,179,.05);border:1px solid rgba(0,255,179,.2);padding:1.5rem;border-radius:10px;margin-top:2rem}
-.honor-benefits h4{color:#00ffb3;margin-bottom:1rem;font-size:1.1rem}
-.honor-benefits ul{list-style:none;padding:0}
-.honor-benefits li{color:#8a8a8a;padding:.5rem 0;padding-left:1.5rem;position:relative;font-size:.9rem}
-.honor-benefits li::before{content:'•';color:#00ffb3;position:absolute;left:0;font-weight:bold}
 .honor-level-card{background:rgba(26,32,39,.4);padding:1.5rem;border-radius:10px;border:1px solid rgba(255,255,255,.05);display:flex;align-items:center;gap:1.5rem;margin-bottom:1rem;transition:all .3s}
 .honor-level-card:hover{transform:translateX(10px)}
-.honor-level-card.bronze:hover{border-color:rgba(205,127,50,.5)}
-.honor-level-card.silver:hover{border-color:rgba(192,192,192,.5)}
-.honor-level-card.gold:hover{border-color:rgba(255,215,0,.5)}
-.honor-level-card.platinum:hover{border-color:rgba(0,255,179,.5)}
-.honor-level-card.diamond:hover{border-color:rgba(185,242,255,.5)}
+/* Novas classes de cores para os níveis */
+.honor-level-card.nivel1:hover{border-color:rgba(239,68,68,.5)}
+.honor-level-card.nivel2:hover{border-color:rgba(249,115,22,.5)}
+.honor-level-card.nivel3:hover{border-color:rgba(156,163,175,.5)}
+.honor-level-card.nivel4:hover{border-color:rgba(34,197,94,.5)}
+.honor-level-card.nivel5:hover{border-color:rgba(250,204,21,.5)}
 .level-icon{width:50px;height:50px;display:flex;align-items:center;justify-content:center;font-size:2rem;flex-shrink:0}
-.level-info{flex:1;display:flex;justify-content:space-between;align-items:center}
-.level-info h4{color:#fff;font-size:1.2rem}
+.level-info{flex:1;display:flex;flex-direction:column;justify-content:center}
+.level-info h4{color:#fff;font-size:1.2rem;margin-bottom:0.2rem}
 .level-points{color:#8a8a8a;font-size:.9rem}
 .tournaments{padding:6rem 5%;background:#0f1419}
 .compete-badge{display:inline-flex;align-items:center;gap:.5rem;background:rgba(255,70,85,.1);border:1px solid rgba(255,70,85,.3);padding:.4rem 1rem;border-radius:20px;margin:0 auto 1.5rem;font-size:.85rem;color:#ff4655;max-width:fit-content}
@@ -440,59 +436,51 @@ footer p{color:#8a8a8a;font-size:.9rem}
                 <p>Mantém uma boa conduta em todas as partidas.</p>
               </div>
             </div>
-
-            <div className="honor-benefits">
-              <h4>📈 Benefícios de Alta Honra</h4>
-              <ul>
-                <li>Prioridade na procura de partidas</li>
-                <li>Badge exclusivo no perfil</li>
-                <li>Acesso a torneios premium</li>
-              </ul>
-            </div>
           </div>
 
           <div className="honor-levels">
             <h3>Níveis de Honra</h3>
 
-            <div className="honor-level-card bronze">
-              <div className="level-icon">🥉</div>
+            <div className="honor-level-card nivel1">
+              <div className="level-icon" style={{ color: "#ef4444" }}>👎</div>
               <div className="level-info">
-                <h4>Bronze</h4>
-                <p className="level-points">0-100 pontos</p>
+                <h4>Nível 1 (Desonroso)</h4>
+                <p className="level-points">0 - 99 pontos absolutos</p>
               </div>
             </div>
 
-            <div className="honor-level-card silver">
-              <div className="level-icon">🥈</div>
+            <div className="honor-level-card nivel2">
+              <div className="level-icon" style={{ color: "#f97316" }}>👎</div>
               <div className="level-info">
-                <h4>Prata</h4>
-                <p className="level-points">101-300 pontos</p>
+                <h4>Nível 2 (Em Risco)</h4>
+                <p className="level-points">100 - 199 pontos absolutos</p>
               </div>
             </div>
 
-            <div className="honor-level-card gold">
-              <div className="level-icon">🥇</div>
+            <div className="honor-level-card nivel3">
+              <div className="level-icon" style={{ color: "#9ca3af" }}>🛡️</div>
               <div className="level-info">
-                <h4>Ouro</h4>
-                <p className="level-points">301-600 pontos</p>
+                <h4>Nível 3 (Neutro)</h4>
+                <p className="level-points">200 - 299 pontos (Início aos 250)</p>
               </div>
             </div>
 
-            <div className="honor-level-card platinum">
-              <div className="level-icon">💎</div>
+            <div className="honor-level-card nivel4">
+              <div className="level-icon" style={{ color: "#22c55e" }}>👍</div>
               <div className="level-info">
-                <h4>Platina</h4>
-                <p className="level-points">601-1000 pontos</p>
+                <h4>Nível 4 (Honrado)</h4>
+                <p className="level-points">300 - 399 pontos absolutos</p>
               </div>
             </div>
 
-            <div className="honor-level-card diamond">
-              <div className="level-icon">💠</div>
+            <div className="honor-level-card nivel5">
+              <div className="level-icon" style={{ color: "#facc15" }}>⭐</div>
               <div className="level-info">
-                <h4>Diamante</h4>
-                <p className="level-points">1001+ pontos</p>
+                <h4>Nível 5 (Exemplar)</h4>
+                <p className="level-points">400 - 500 pontos absolutos</p>
               </div>
             </div>
+
           </div>
         </div>
       </section>
@@ -567,7 +555,6 @@ footer p{color:#8a8a8a;font-size:.9rem}
 
       <footer>
         <p>&copy; 2025 PWS - Projeto PAP de Francisco Filipe | Todos os direitos reservados</p>
-        <p style={{ marginTop: ".5rem" }}>Valorant é uma marca registada da Riot Games, Inc.</p>
       </footer>
     </>
   );
