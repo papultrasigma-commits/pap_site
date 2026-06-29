@@ -1,0 +1,965 @@
+import React, { useEffect, useMemo, useState } from "react";
+import { Routes, Route, useNavigate, useLocation, Navigate } from "react-router-dom";
+import { supabase } from "./clienteSupabase";
+import { useLanguage } from "./i18n/ContextoIdioma";
+import { getHashPath } from "./utils/rotasHash";
+
+// PAGES
+import DashboardPage from "./pages/Painel";
+import TeamPage from "./pages/Equipa";
+import CreateTeamPage from "./pages/CriarEquipa";
+import FindTeamPage from "./pages/ProcurarEquipa";
+import FeedPage from "./pages/Mural";
+import RecruitPage from "./pages/Recrutar";
+import ScrimsPage from "./pages/ProcurarScrims";
+import TrainingsPage from "./pages/Treinos";
+import StrategiesPage from "./pages/Estrategias";
+import TournamentsPage from "./pages/Torneios";
+import HonorPage from "./pages/Honra";
+import ProfilePage from "./pages/Perfil";
+import SettingsPage from "./pages/Definicoes";
+import NotificationsPage from "./pages/Notificacoes";
+import ChatPage from "./pages/ConversaEquipa";
+import NegotiationsPage from "./pages/Negociacoes";
+import AdminReportsPage from "./pages/DenunciasAdmin";
+import UpdatePasswordPage from "./pages/AtualizarPalavraPasse";
+import ForgotPasswordPage from "./pages/RecuperarPalavraPasse";
+
+import {
+  LayoutDashboard,
+  Users,
+  Search,
+  Swords,
+  Map,
+  Trophy,
+  Award,
+  User,
+  Settings,
+  LogOut,
+  Shield,
+  Menu,
+  X,
+  Bell,
+  MessageSquare,
+  Handshake,
+  Video,
+  UserPlus,
+  RefreshCcw,
+  Plus,
+  CheckCircle2,
+  Loader2,
+  Gavel,
+} from "lucide-react";
+
+const SidebarItem = ({ icon, label, active = false, badge = null, onClick, color }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className={`w-full flex items-center gap-3 px-4 py-3 rounded-md transition-all duration-200 group relative overflow-hidden ${
+      active
+        ? "bg-red-500/10 text-red-500"
+        : "text-gray-400 hover:bg-gray-800 hover:text-white"
+    } ${color ? color : ""}`}
+  >
+    {active && <div className="absolute left-0 top-0 bottom-0 w-1 bg-red-500" />}
+    <span className={`${active ? "text-red-500" : "group-hover:text-white"}`}>
+      {icon}
+    </span>
+    <span className="font-medium text-sm tracking-wide">{label}</span>
+    {badge && (
+      <span className="ml-auto bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">
+        {badge}
+      </span>
+    )}
+  </button>
+);
+
+export default function App() {
+  const { t } = useLanguage();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const [userName, setUserName] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [userLoading, setUserLoading] = useState(true);
+
+  const [myTeam, setMyTeam] = useState(null);
+  const [teamLoading, setTeamLoading] = useState(true);
+  const [teamRefreshKey, setTeamRefreshKey] = useState(0);
+
+  const [nextTraining, setNextTraining] = useState(null);
+  const [riotAccount, setRiotAccount] = useState(null);
+  const [invitesCount, setInvitesCount] = useState(0);
+  const [unreadNegotiations, setUnreadNegotiations] = useState(0);
+
+  const [isCaptainOrVice, setIsCaptainOrVice] = useState(false);
+
+  const [currentUserEmail, setCurrentUserEmail] = useState(null);
+  const [showAccountModal, setShowAccountModal] = useState(false);
+  const [savedAccounts, setSavedAccounts] = useState([]);
+  const [isSwitching, setIsSwitching] = useState(false);
+
+  const [showTournamentsBadge, setShowTournamentsBadge] = useState(
+    localStorage.getItem("seen_tournaments") !== "true"
+  );
+
+  useEffect(() => {
+    if (location.pathname === "/tournaments") {
+      setShowTournamentsBadge(false);
+      localStorage.setItem("seen_tournaments", "true");
+    }
+  }, [location.pathname]);
+
+  const resetSessionUi = () => {
+    setUserName(null);
+    setIsAdmin(false);
+    setCurrentUserEmail(null);
+    setUserLoading(false);
+    setMyTeam(null);
+    setTeamLoading(false);
+    setNextTraining(null);
+    setRiotAccount(null);
+    setInvitesCount(0);
+    setUnreadNegotiations(0);
+    setIsCaptainOrVice(false);
+  };
+
+  const openAccountModal = () => {
+    const accounts = JSON.parse(localStorage.getItem("vlr_saved_accounts") || "[]");
+    setSavedAccounts(accounts);
+    setShowAccountModal(true);
+  };
+
+  const switchToExistingAccount = async (account) => {
+    if (!account.refreshToken) {
+      goToAddAccount();
+      return;
+    }
+
+    setIsSwitching(true);
+
+    try {
+      const { data, error } = await supabase.auth.setSession({
+        access_token: account.accessToken,
+        refresh_token: account.refreshToken,
+      });
+
+      if (error) throw error;
+
+      if (data?.session) {
+        const accounts = JSON.parse(localStorage.getItem("vlr_saved_accounts") || "[]");
+        const updated = accounts.map((acc) =>
+          acc.email === account.email
+            ? {
+                ...acc,
+                accessToken: data.session.access_token,
+                refreshToken: data.session.refresh_token,
+              }
+            : acc
+        );
+
+        localStorage.setItem("vlr_saved_accounts", JSON.stringify(updated));
+        
+        window.location.href = getHashPath("/");
+        window.location.reload();
+      }
+    } catch (err) {
+      console.error("Erro ao trocar de conta:", err);
+      alert("⚠️ A sessão desta conta expirou por inatividade. Terás de iniciar sessão de novo com esta conta.");
+      
+      const accounts = JSON.parse(localStorage.getItem("vlr_saved_accounts") || "[]");
+      const updated = accounts.filter(acc => acc.email !== account.email);
+      localStorage.setItem("vlr_saved_accounts", JSON.stringify(updated));
+      
+      goToAddAccount();
+    } finally {
+      setIsSwitching(false);
+    }
+  };
+
+  const goToAddAccount = () => {
+    Object.keys(localStorage).forEach((key) => {
+      if (key.startsWith("sb-") && key.endsWith("-auth-token")) {
+        localStorage.removeItem(key);
+      }
+    });
+
+    sessionStorage.setItem("force_login_form", "true");
+    window.location.href = getHashPath("/login"); 
+    window.location.reload();
+  };
+
+  const handleLogout = async () => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    const email = session?.user?.email;
+
+    if (email) {
+      const accounts = JSON.parse(localStorage.getItem("vlr_saved_accounts") || "[]");
+      const updated = accounts.map((acc) =>
+        acc.email === email
+          ? {
+              ...acc,
+              refreshToken: null,
+              accessToken: null,
+            }
+          : acc
+      );
+      localStorage.setItem("vlr_saved_accounts", JSON.stringify(updated));
+    }
+
+    await supabase.auth.signOut();
+    resetSessionUi();
+    navigate("/");
+    setTeamRefreshKey((k) => k + 1);
+  };
+
+  const loadUserName = async () => {
+    setUserLoading(true);
+
+    try {
+      const { data: userRes } = await supabase.auth.getUser();
+      const u = userRes?.user;
+
+      if (!u) {
+        setUserName(null);
+        setCurrentUserEmail(null);
+        setIsAdmin(false);
+        setRiotAccount(null);
+        return;
+      }
+
+      setCurrentUserEmail(u.email);
+
+      const { data: prof, error } = await supabase
+        .from("profiles")
+        .select("username, is_admin, riot_account, is_banned")
+        .eq("id", u.id)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (prof?.is_banned) {
+        alert("🚫 A tua conta foi BANIDA PERMANENTEMENTE por violar as regras da comunidade.");
+        await supabase.auth.signOut();
+        resetSessionUi();
+        window.location.href = getHashPath("/");
+        return;
+      }
+
+      const finalName =
+        prof?.username ||
+        u.user_metadata?.username ||
+        u.user_metadata?.name ||
+        u.email ||
+        t("common.user");
+
+      setUserName(finalName);
+      setIsAdmin(prof?.is_admin || false);
+      setRiotAccount(prof?.riot_account || null);
+    } catch (error) {
+      console.error("Erro ao carregar utilizador:", error);
+      setUserName(null);
+      setCurrentUserEmail(null);
+      setIsAdmin(false);
+      setRiotAccount(null);
+    } finally {
+      setUserLoading(false);
+    }
+  };
+
+  const loadMyTeamAndInvites = async () => {
+    setTeamLoading(true);
+
+    try {
+      const { data: userRes } = await supabase.auth.getUser();
+      const uid = userRes?.user?.id;
+
+      if (!uid) {
+        setMyTeam(null);
+        setIsCaptainOrVice(false);
+        return;
+      }
+
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("is_admin")
+        .eq("id", uid)
+        .maybeSingle();
+
+      if (prof?.is_admin) {
+        setIsAdmin(true);
+        setMyTeam(null);
+        setTeamLoading(false);
+        return;
+      }
+
+      const { data: member = {} } = await supabase
+        .from("team_members")
+        .select("team_id, role")
+        .eq("user_id", uid)
+        .maybeSingle();
+
+      const teamId = member?.team_id;
+      const isCapOrVice = member?.role === "owner" || member?.role === "vice";
+
+      setIsCaptainOrVice(isCapOrVice || false);
+
+      if (teamId) {
+        const { data: team } = await supabase
+          .from("teams")
+          // AQUI ESTÁ A CORREÇÃO: honor_score adicionado ao SELECT
+          .select("id,name,color_id,color_hex,owner_id,created_at,logo_url,region,honor_score")
+          .eq("id", teamId)
+          .maybeSingle();
+
+        if (team) {
+          setMyTeam(team);
+        } else {
+          setMyTeam(null);
+          setIsCaptainOrVice(false);
+        }
+      } else {
+        setMyTeam(null);
+        setIsCaptainOrVice(false);
+      }
+
+      const { count: teamInvCount } = await supabase
+        .from("team_invites")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", uid)
+        .eq("status", "pending");
+
+      let scrimsReqCount = 0;
+      let joinRequestsCount = 0;
+
+      if (teamId && isCapOrVice) {
+        const { data: pendingReqs } = await supabase
+          .from("scrim_requests")
+          .select("id, scrims!inner(team_id)")
+          .eq("status", "pending")
+          .eq("scrims.team_id", teamId);
+
+        scrimsReqCount = pendingReqs?.length || 0;
+
+        const { count: jReqCount } = await supabase
+          .from("team_requests")
+          .select("*", { count: "exact", head: true })
+          .eq("status", "pending")
+          .eq("team_id", teamId);
+
+        joinRequestsCount = jReqCount || 0;
+      }
+
+      setInvitesCount((teamInvCount || 0) + scrimsReqCount + joinRequestsCount);
+    } catch (error) {
+      console.error("Erro a carregar equipa/convites:", error);
+      setMyTeam(null);
+      setIsCaptainOrVice(false);
+    } finally {
+      setTeamLoading(false);
+    }
+  };
+
+  const syncAppData = async () => {
+    const { data: userRes } = await supabase.auth.getUser();
+    const u = userRes?.user;
+
+    if (!u) {
+      resetSessionUi();
+      return;
+    }
+
+    await Promise.all([loadUserName(), loadMyTeamAndInvites()]);
+  };
+
+  useEffect(() => {
+    let mounted = true;
+
+    const run = async () => {
+      if (!mounted) return;
+      await syncAppData();
+    };
+
+    run();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session?.user) {
+        const accounts = JSON.parse(localStorage.getItem("vlr_saved_accounts") || "[]");
+        const email = session.user.email;
+        
+        const accountExists = accounts.some(acc => acc.email === email);
+        if (accountExists) {
+          const updated = accounts.map((acc) =>
+            acc.email === email
+              ? {
+                  ...acc,
+                  accessToken: session.access_token,
+                  refreshToken: session.refresh_token,
+                }
+              : acc
+          );
+          localStorage.setItem("vlr_saved_accounts", JSON.stringify(updated));
+        }
+      }
+      
+      run();
+    });
+
+    return () => {
+      mounted = false;
+      subscription?.unsubscribe();
+    };
+  }, [teamRefreshKey]);
+
+  const displayName = riotAccount?.name || (userLoading ? "..." : userName ?? t("common.user"));
+  const initial = (displayName?.trim()?.[0] || "U").toUpperCase();
+
+  const headerTitle = useMemo(() => {
+    const map = {
+      "/dashboard": "DASHBOARD",
+      "/team": "MINHA EQUIPA",
+      "/feed": "FEED DE CLIPES",
+      "/find-team": "PROCURAR EQUIPA",
+      "/recruit": "RECRUTAR JOGADORES",
+      "/create-team": "CRIAR EQUIPA",
+      "/scrims": "PROCURAR SCRIMS",
+      "/negotiations": "NEGOCIAÇÕES",
+      "/trainings": "TREINOS",
+      "/strategies": "ESTRATÉGIAS",
+      "/tournaments": "TORNEIOS",
+      "/honor": "SISTEMA DE HONRA",
+      "/profile": "PERFIL",
+      "/settings": "DEFINIÇÕES",
+      "/notifications": "NOTIFICAÇÕES",
+      "/chat": "CHAT DA EQUIPA",
+      "/admin/reports": "MODERAÇÃO",
+      "/update-password": "NOVA PALAVRA-PASSE",
+      "/forgot-password": "RECUPERAR PALAVRA-PASSE",
+    };
+
+    if (location.pathname.startsWith("/profile/")) return "PERFIL";
+    return map[location.pathname] || "DASHBOARD";
+  }, [location.pathname]);
+
+  const headerTitleMap = {
+    "/dashboard": "app.pageTitles.dashboard",
+    "/team": "app.pageTitles.team",
+    "/feed": "app.pageTitles.feed",
+    "/find-team": "app.pageTitles.findTeam",
+    "/recruit": "app.pageTitles.recruit",
+    "/create-team": "app.pageTitles.createTeam",
+    "/scrims": "app.pageTitles.scrims",
+    "/negotiations": "app.pageTitles.negotiations",
+    "/trainings": "app.pageTitles.trainings",
+    "/strategies": "app.pageTitles.strategies",
+    "/tournaments": "app.pageTitles.tournaments",
+    "/honor": "app.pageTitles.honor",
+    "/profile": "app.pageTitles.profile",
+    "/settings": "app.pageTitles.settings",
+    "/notifications": "app.pageTitles.notifications",
+    "/chat": "app.pageTitles.chat",
+    "/admin/reports": "app.pageTitles.moderation",
+    "/update-password": "app.pageTitles.updatePassword",
+    "/forgot-password": "app.pageTitles.forgotPassword",
+  };
+
+  const translatedHeaderTitle = t(
+    location.pathname.startsWith("/profile/")
+      ? "app.pageTitles.profile"
+      : headerTitleMap[location.pathname] || "app.pageTitles.dashboard"
+  ).toUpperCase();
+
+  const isStrategies = location.pathname === "/strategies";
+  const isChat = location.pathname === "/chat";
+  const isUpdatePassword = location.pathname === "/update-password";
+  const isForgotPassword = location.pathname === "/forgot-password";
+
+  const isStandalonePage = isUpdatePassword || isForgotPassword;
+  
+  if (isStandalonePage) {
+    return (
+      <Routes>
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route 
+          path="/update-password" 
+          element={
+            <UpdatePasswordPage 
+              onSuccess={() => {
+                window.location.hash = "/dashboard";
+              }} 
+            />
+          } 
+        />
+      </Routes>
+    );
+  }
+
+  return (
+    <div className="flex min-h-screen bg-[#0f1112] text-white font-sans selection:bg-red-500 selection:text-white relative">
+      {showAccountModal && (
+        <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="bg-[#111] border border-gray-800 p-6 rounded-2xl w-full max-w-sm relative shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            {isSwitching && (
+              <div className="absolute inset-0 z-10 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center rounded-2xl">
+                <Loader2 className="animate-spin text-red-500 mb-3" size={36} />
+                <p className="text-white text-sm font-medium">
+                  {t("app.accountModal.switching")}
+                </p>
+              </div>
+            )}
+
+            <button
+              onClick={() => setShowAccountModal(false)}
+              className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors"
+            >
+              <X size={20} />
+            </button>
+
+            <h2 className="text-xl font-bold mb-5 flex items-center gap-2">
+              <RefreshCcw size={20} className="text-red-500" />
+              {t("app.accountModal.title")}
+            </h2>
+
+            <div className="space-y-2 max-h-64 overflow-y-auto custom-scrollbar pr-1">
+              {savedAccounts.length === 0 ? (
+                <p className="text-sm text-gray-500 text-center py-6">
+                  {t("app.accountModal.noSavedAccounts")}
+                </p>
+              ) : (
+                savedAccounts.map((acc, idx) => {
+                  const isActive = acc.email === currentUserEmail;
+
+                  return (
+                    <div
+                      key={idx}
+                      onClick={() => !isActive && switchToExistingAccount(acc)}
+                      className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all ${
+                        isActive
+                          ? "bg-red-500/10 border border-red-500/30"
+                          : "bg-neutral-900 border border-neutral-800 hover:bg-neutral-800 hover:border-gray-600"
+                      }`}
+                    >
+                      <div className="w-10 h-10 rounded-full bg-red-500 flex items-center justify-center font-bold text-white shadow-sm shadow-red-500/20">
+                        {(acc.username?.[0] || acc.email?.[0] || "U").toUpperCase()}
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-sm text-white truncate">
+                          {acc.username || t("common.user")}
+                        </p>
+                        <p className="text-xs text-gray-500 truncate">{acc.email}</p>
+                      </div>
+
+                      {isActive && (
+                        <CheckCircle2 size={18} className="text-red-500 ml-2" />
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            <button
+              onClick={goToAddAccount}
+              className="mt-4 w-full py-3.5 rounded-xl border border-dashed border-gray-700 hover:border-gray-500 hover:bg-neutral-900 flex items-center justify-center gap-2 font-medium text-sm text-gray-300 hover:text-white transition-all"
+            >
+              <Plus size={18} />
+              {t("app.accountModal.addNewAccount")}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {sidebarOpen && (
+        <button
+          type="button"
+          aria-label={t("common.closeMenu")}
+          className="fixed inset-0 bg-black/50 z-20 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      <aside
+        className={`fixed md:sticky top-0 h-screen w-72 bg-[#111] border-r border-gray-800 flex flex-col z-30 transition-transform duration-300 ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+        }`}
+      >
+        <div className="p-8 flex items-center gap-4 border-b border-gray-800">
+          <div className="w-10 h-10 bg-red-500 flex items-center justify-center rounded shadow-[0_0_15px_rgba(239,68,68,0.5)]">
+            <Shield size={20} className="text-white" fill="white" />
+          </div>
+
+          <div>
+            <h1 className="font-bold text-xl tracking-wider uppercase leading-none">
+              PWS
+            </h1>
+          </div>
+
+          <button
+            className="ml-auto md:hidden text-gray-400"
+            onClick={() => setSidebarOpen(false)}
+            type="button"
+          >
+            <X size={24} />
+          </button>
+        </div>
+
+        <nav className="flex-1 py-6 px-4 space-y-2 overflow-y-auto custom-scrollbar">
+          <div className="px-4 mb-2 text-[10px] font-bold text-gray-600 uppercase tracking-widest">
+            {t("app.sections.main")}
+          </div>
+
+          <SidebarItem
+            icon={<LayoutDashboard size={20} />}
+            label={t("app.sidebar.dashboard")}
+            active={location.pathname === "/dashboard"}
+            onClick={() => navigate("/dashboard")}
+          />
+
+          {isAdmin ? (
+            <>
+              <SidebarItem
+                icon={<Gavel size={20} />}
+                label={t("app.sidebar.moderationReports")}
+                active={location.pathname === "/admin/reports"}
+                onClick={() => navigate("/admin/reports")}
+              />
+
+              <SidebarItem
+                icon={<Video size={20} />}
+                label={t("app.sidebar.communityFeed")}
+                active={location.pathname === "/feed"}
+                onClick={() => navigate("/feed")}
+              />
+
+              <SidebarItem
+                icon={<Trophy size={20} />}
+                label={t("app.sidebar.tournamentManagement")}
+                active={location.pathname === "/tournaments"}
+                onClick={() => navigate("/tournaments")}
+              />
+            </>
+          ) : (
+            <>
+              <SidebarItem
+                icon={<Bell size={20} />}
+                label={t("app.sidebar.notifications")}
+                active={location.pathname === "/notifications"}
+                onClick={() => navigate("/notifications")}
+                badge={invitesCount > 0 ? invitesCount : null}
+              />
+
+              <SidebarItem
+                icon={<Users size={20} />}
+                label={t("app.sidebar.myTeam")}
+                active={location.pathname === "/team"}
+                onClick={() => navigate("/team")}
+              />
+
+              {!teamLoading && myTeam && (
+                <SidebarItem
+                  icon={<MessageSquare size={20} />}
+                  label={t("app.sidebar.teamChat")}
+                  active={location.pathname === "/chat"}
+                  onClick={() => navigate("/chat")}
+                />
+              )}
+
+              <SidebarItem
+                icon={<Video size={20} />}
+                label={t("app.sidebar.clipsFeed")}
+                active={location.pathname === "/feed"}
+                onClick={() => navigate("/feed")}
+              />
+
+              <SidebarItem
+                icon={<UserPlus size={20} />}
+                label={t("app.sidebar.recruitPlayers")}
+                active={location.pathname === "/recruit"}
+                onClick={() => navigate("/recruit")}
+              />
+
+              {!teamLoading && !myTeam && (
+                <SidebarItem
+                  icon={<Search size={20} />}
+                  label={t("app.sidebar.findTeam")}
+                  active={location.pathname === "/find-team"}
+                  onClick={() => navigate("/find-team")}
+                />
+              )}
+
+              <SidebarItem
+                icon={<Search size={20} />}
+                label={t("app.sidebar.findScrims")}
+                active={location.pathname === "/scrims"}
+                onClick={() => navigate("/scrims")}
+              />
+
+              {!teamLoading && myTeam && (
+                <SidebarItem
+                  icon={<Handshake size={20} />}
+                  label={t("app.sidebar.negotiations")}
+                  active={location.pathname === "/negotiations"}
+                  onClick={() => navigate("/negotiations")}
+                  badge={unreadNegotiations > 0 ? unreadNegotiations : null}
+                />
+              )}
+
+              <div className="px-4 mt-8 mb-2 text-[10px] font-bold text-gray-600 uppercase tracking-widest">
+                {t("app.sections.management")}
+              </div>
+
+              <SidebarItem
+                icon={<Swords size={20} />}
+                label={t("app.sidebar.trainings")}
+                active={location.pathname === "/trainings"}
+                onClick={() => navigate("/trainings")}
+              />
+
+              <SidebarItem
+                icon={<Map size={20} />}
+                label={t("app.sidebar.strategies")}
+                active={location.pathname === "/strategies"}
+                onClick={() => navigate("/strategies")}
+              />
+
+              <SidebarItem
+                icon={<Trophy size={20} />}
+                label={t("app.sidebar.tournaments")}
+                active={location.pathname === "/tournaments"}
+                onClick={() => navigate("/tournaments")}
+                badge={showTournamentsBadge ? "1" : null}
+              />
+
+              <SidebarItem
+                icon={<Award size={20} />}
+                label={t("app.sidebar.honorSystem")}
+                active={location.pathname === "/honor"}
+                onClick={() => navigate("/honor")}
+              />
+            </>
+          )}
+        </nav>
+
+        <div className="p-4 space-y-1 border-t border-gray-800 bg-[#0c0d0e]">
+          {!isAdmin && (
+            <SidebarItem
+              icon={<User size={20} />}
+              label={t("app.sidebar.profile")}
+              active={location.pathname === "/profile"}
+              onClick={() => navigate("/profile")}
+            />
+          )}
+
+          <SidebarItem
+            icon={<Settings size={20} />}
+            label={t("app.sidebar.settings")}
+            active={location.pathname === "/settings"}
+            onClick={() => navigate("/settings")}
+          />
+
+          <SidebarItem
+            icon={<RefreshCcw size={20} />}
+            label={t("app.sidebar.switchAccount")}
+            onClick={openAccountModal}
+          />
+
+          <SidebarItem
+            icon={<LogOut size={20} />}
+            label={t("app.sidebar.logout")}
+            color="text-red-500 hover:bg-red-500/10 hover:text-red-500"
+            onClick={handleLogout}
+          />
+        </div>
+      </aside>
+
+      <main className="flex-1 flex flex-col min-w-0">
+        <div className="md:hidden flex items-center justify-between p-4 border-b border-gray-800 bg-[#111]">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="text-gray-300"
+            type="button"
+          >
+            <Menu size={24} />
+          </button>
+
+          <span className="font-bold tracking-wider">{translatedHeaderTitle}</span>
+
+          <div className="w-8 h-8 rounded-full bg-red-500 flex items-center justify-center text-xs font-bold">
+            {initial}
+          </div>
+        </div>
+
+        <div
+          className={`flex-1 overflow-y-auto ${
+            isStrategies || isChat
+              ? "p-0 md:p-6"
+              : "p-6 md:p-10"
+          }`}
+        >
+          {!isStrategies &&
+            !isChat &&
+            !location.pathname.startsWith("/profile") && (
+              <div className="hidden md:flex justify-between items-center mb-12">
+                <div>
+                  <h2 className="text-gray-400 text-sm font-medium">
+                    {isAdmin ? t("app.welcome") : t("app.welcomeBack")}
+                  </h2>
+
+                  <h1 className="text-3xl font-bold flex items-center gap-3">
+                    {displayName}
+
+                    {isAdmin && (
+                      <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded uppercase tracking-widest">
+                        Admin
+                      </span>
+                    )}
+                  </h1>
+                </div>
+              </div>
+            )}
+
+          <Routes>
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+
+            <Route
+              path="/dashboard"
+              element={
+                <DashboardPage
+                  myTeam={myTeam}
+                  teamLoading={teamLoading}
+                  riotAccount={riotAccount}
+                  nextTraining={nextTraining}
+                />
+              }
+            />
+
+            <Route
+              path="/notifications"
+              element={
+                <NotificationsPage
+                  onTeamJoined={() => {
+                    setTeamRefreshKey((k) => k + 1);
+                    setInvitesCount(0);
+                  }}
+                  onAction={() => loadMyTeamAndInvites()}
+                />
+              }
+            />
+
+            <Route
+              path="/chat"
+              element={<ChatPage myTeam={myTeam} userName={displayName} />}
+            />
+
+            <Route
+              path="/negotiations"
+              element={
+                <NegotiationsPage
+                  myTeam={myTeam}
+                  setGlobalUnread={setUnreadNegotiations}
+                />
+              }
+            />
+
+            <Route
+              path="/team"
+              element={
+                <TeamPage
+                  refreshKey={teamRefreshKey}
+                  onGoFindTeam={() => navigate("/find-team")}
+                  onGoCreateTeam={() => navigate("/create-team")}
+                  onEditTeam={() => navigate("/create-team")}
+                  onLeaveTeam={async () => {
+                    setMyTeam(null);
+                    await loadMyTeamAndInvites();
+                    setTeamRefreshKey((k) => k + 1);
+                  }}
+                  riotAccount={riotAccount}
+                  userName={userName}
+                />
+              }
+            />
+
+            <Route
+              path="/create-team"
+              element={
+                <CreateTeamPage
+                  existingTeam={myTeam}
+                  onCancel={() => navigate("/dashboard")}
+                  goFindTeam={() => navigate("/find-team")}
+                  onCreated={async () => {
+                    await loadMyTeamAndInvites();
+                    setTeamRefreshKey((k) => k + 1);
+                    navigate("/team");
+                  }}
+                />
+              }
+            />
+
+            <Route path="/feed" element={<FeedPage />} />
+            <Route path="/recruit" element={<RecruitPage />} />
+
+            <Route
+              path="/find-team"
+              element={
+                <FindTeamPage
+                  onCancel={() => navigate("/dashboard")}
+                  onJoined={async () => {
+                    await loadMyTeamAndInvites();
+                    setTeamRefreshKey((k) => k + 1);
+                    navigate("/team");
+                  }}
+                />
+              }
+            />
+
+            <Route path="/scrims" element={<ScrimsPage myTeam={myTeam} />} />
+            <Route path="/trainings" element={<TrainingsPage myTeam={myTeam} />} />
+
+            <Route
+              path="/strategies"
+              element={
+                <div className="h-[calc(100vh-0px)]">
+                  <StrategiesPage />
+                </div>
+              }
+            />
+
+            <Route path="/tournaments" element={<TournamentsPage myTeam={myTeam} />} />
+            <Route path="/honor" element={<HonorPage myTeam={myTeam} />} />
+
+            <Route
+              path="/settings"
+              element={
+                <SettingsPage
+                  riotAccount={riotAccount}
+                  setRiotAccount={setRiotAccount}
+                  userName={userName}
+                />
+              }
+            />
+
+            <Route
+              path="/profile"
+              element={<ProfilePage userName={displayName} riotAccount={riotAccount} />}
+            />
+
+            <Route
+              path="/profile/:userId"
+              element={<ProfilePage userName={displayName} riotAccount={riotAccount} />}
+            />
+
+            <Route path="/admin/reports" element={<AdminReportsPage />} />
+          </Routes>
+        </div>
+      </main>
+    </div>
+  );
+}
