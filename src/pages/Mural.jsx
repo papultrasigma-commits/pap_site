@@ -1018,7 +1018,6 @@ export default function FeedPage() {
       video.muted = true;
       video.playsInline = true;
 
-<<<<<<< HEAD
       video.addEventListener("loadedmetadata", async () => {
         try {
           const canvas = document.createElement("canvas");
@@ -1035,20 +1034,6 @@ export default function FeedPage() {
           }
           if (video.duration > 1 && !times.includes(video.duration - 0.5)) {
             times.push(video.duration - 0.5);
-=======
-      video.addEventListener("loadeddata", async () => {
-        try {
-          const canvas = document.createElement("canvas");
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
-
-          const ctx = canvas.getContext("2d");
-
-          const times = [0.5, 1.5, 2.5].filter((t) => t < video.duration);
-
-          if (times.length === 0) {
-            times.push(video.duration / 2);
->>>>>>> d92e8471f43f4908a5e1a297215a9a01664e667e
           }
 
           let blocked = false;
@@ -1072,10 +1057,7 @@ export default function FeedPage() {
 
           resolve(blocked);
         } catch (err) {
-<<<<<<< HEAD
           console.error("Erro na análise do vídeo:", err);
-=======
->>>>>>> d92e8471f43f4908a5e1a297215a9a01664e667e
           resolve(false);
         }
       });
@@ -1357,8 +1339,4 @@ export default function FeedPage() {
       </div>
     </div>
   );
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> d92e8471f43f4908a5e1a297215a9a01664e667e
