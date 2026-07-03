@@ -31,15 +31,33 @@ export default function Scrims({ myTeam }) {
   const fetchFeedScrims = async () => {
     setLoading(true);
     try {
+      const now = new Date();
+      // Get local date string YYYY-MM-DD
+      const today = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+      // Get local time string HH:MM
+      const currentHours = now.getHours().toString().padStart(2, '0');
+      const currentMinutes = now.getMinutes().toString().padStart(2, '0');
+      const currentTime = `${currentHours}:${currentMinutes}`;
+
       const { data, error } = await supabase
         .from('scrims')
         .select(`*, teams:team_id (name, color_hex)`)
         .eq('status', 'open')
+        .gte('date', today)
         .order('date', { ascending: true })
         .order('time', { ascending: true });
 
       if (error) throw error;
-      setFeedScrims(data || []);
+
+      // Further filter out today's scrims if the time has already passed
+      const validScrims = (data || []).filter(scrim => {
+        if (scrim.date === today) {
+          return scrim.time >= currentTime;
+        }
+        return true;
+      });
+
+      setFeedScrims(validScrims);
     } catch (err) {
       console.error("Erro ao carregar mural:", err);
     } finally {
@@ -79,6 +97,11 @@ export default function Scrims({ myTeam }) {
   const handleRequestScrim = async (scrimId) => {
     if (!isCaptain) return alert(t("scrims.captainOnly"));
     if (!myTeam) return alert(t("scrims.needTeam"));
+
+    const targetScrim = feedScrims.find(s => String(s.id) === String(scrimId));
+    if (targetScrim && String(targetScrim.team_id) === String(myTeam.id)) {
+      return alert(t("scrims.ownScrimError") || "Não podes enviar um pedido para o teu próprio scrim.");
+    }
 
     try {
       const { error } = await supabase.from('scrim_requests').insert([{
@@ -149,7 +172,7 @@ export default function Scrims({ myTeam }) {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
             {feedScrims.map((scrim) => {
-              const isMyScrim = myTeam && scrim.team_id === myTeam.id;
+              const isMyScrim = myTeam && String(scrim.team_id) === String(myTeam.id);
 
               return (
                 <div key={scrim.id} className={`bg-[#181a1b] border ${isMyScrim ? 'border-red-500/30' : 'border-gray-800'} rounded-xl p-5 hover:border-gray-700 transition-all flex flex-col h-full relative overflow-hidden group`}>

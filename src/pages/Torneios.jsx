@@ -147,6 +147,11 @@ export default function Tournaments({ myTeam }) {
   const fetchTournaments = async () => {
     setLoading(true);
     try {
+      const now = new Date();
+      // Get current local ISO string formatted correctly for comparison with datetime-local
+      const localCurrentTime = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+      const today = localCurrentTime.split('T')[0];
+
       const { data, error } = await supabase
         .from("tournaments")
         .select(
@@ -155,10 +160,17 @@ export default function Tournaments({ myTeam }) {
           tournament_participants ( id, team_id )
         `
         )
+        .gte("start_date", today)
         .order("start_date", { ascending: true });
 
       if (error) throw error;
-      setTournaments(data || []);
+
+      // Further filter out any that have passed the current time today
+      const validTournaments = (data || []).filter(tournament => {
+        return tournament.start_date >= localCurrentTime;
+      });
+
+      setTournaments(validTournaments);
     } catch (err) {
       console.error("Erro ao carregar torneios:", err);
     } finally {

@@ -119,7 +119,7 @@ const ValorantProfileBanner = ({ riotAccount, onLinkClick }) => {
 };
 
 export default function Dashboard({ myTeam, teamLoading, riotAccount, nextTraining }) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const navigate = useNavigate(); 
   const [mmrData, setMmrData] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false); // <-- NOVO ESTADO
@@ -224,8 +224,15 @@ export default function Dashboard({ myTeam, teamLoading, riotAccount, nextTraini
   const currentRank = mmrData ? mmrData.currenttierpatched : t("dashboard.noRank");
   const currentRR = mmrData ? `${mmrData.ranking_in_tier} RR` : "-";
   const accLevel = riotAccount ? riotAccount.account_level : "0";
-  const trainingTime = nextTraining ? nextTraining.time : "--:--";
-  const trainingDay = nextTraining ? nextTraining.day : t("dashboard.noTrainings");
+  
+  let trainingTime = "--:--";
+  let trainingDay = t("dashboard.noTrainings");
+
+  if (nextTraining && nextTraining.date) {
+    const d = new Date(nextTraining.date);
+    trainingTime = `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}h`;
+    trainingDay = d.toLocaleDateString(language === "en" ? "en-US" : "pt-PT", { weekday: 'short', day: '2-digit', month: 'short' });
+  }
 
   return (
     <div className="animate-fade-in max-w-6xl mx-auto pb-6 xl:pb-10">

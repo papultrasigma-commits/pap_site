@@ -318,9 +318,24 @@ export default function App() {
 
         if (team) {
           setMyTeam(team);
+
+          // Buscar próximo treino
+          const now = new Date();
+          const localNow = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+          const { data: nextT } = await supabase
+            .from("team_trainings")
+            .select("*")
+            .eq("team_id", teamId)
+            .gte("date", localNow)
+            .order("date", { ascending: true })
+            .limit(1)
+            .maybeSingle();
+          
+          setNextTraining(nextT || null);
         } else {
           setMyTeam(null);
           setIsCaptainOrVice(false);
+          setNextTraining(null);
         }
       } else {
         setMyTeam(null);
