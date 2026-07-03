@@ -798,8 +798,10 @@ export default function App() {
 
         <div
           className={`flex-1 overflow-y-auto ${
-            isStrategies || isChat
-              ? "p-0 md:p-6"
+            isStrategies
+              ? "p-0 flex flex-col"
+              : isChat 
+              ? "p-0 md:p-6 flex flex-col"
               : "p-6 md:p-10"
           }`}
         >

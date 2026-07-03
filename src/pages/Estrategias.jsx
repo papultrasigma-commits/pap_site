@@ -14,6 +14,7 @@ const MAPS = [
   { id: "lotus", label: "Lotus" },
   { id: "pearl", label: "Pearl" },
   { id: "split", label: "Split" },
+  { id: "summit", label: "Summit" },
   { id: "sunset", label: "Sunset" },
 ];
 
@@ -22,12 +23,13 @@ const MAP_IMAGES = {
   ascent: "https://media.valorant-api.com/maps/7eaecc1b-4337-bbf6-6ab9-04b8f06b3319/displayicon.png",
   bind: "https://media.valorant-api.com/maps/2c9d57ec-4431-9c5e-2939-8f9ef6dd5cba/displayicon.png",
   breeze: "https://media.valorant-api.com/maps/2fb9a4fd-47b8-4e7d-a969-74b4046ebd53/displayicon.png",
-  fracture: "https://media.valorant-api.com/maps/bbee0284-4f82-97ca-5811-1bb6f686b494/displayicon.png",
+  fracture: "https://media.valorant-api.com/maps/b529448b-4d60-346e-e89e-00a4c527a405/displayicon.png",
   haven: "https://media.valorant-api.com/maps/2bee0dc9-4ffe-519b-1cbd-7fbe763a6047/displayicon.png",
   icebox: "https://media.valorant-api.com/maps/e2ad5c54-4114-a870-9641-8ea21279579a/displayicon.png",
   lotus: "https://media.valorant-api.com/maps/2fe4ed3a-450a-948b-6d6b-e89a78e680a9/displayicon.png",
   pearl: "https://media.valorant-api.com/maps/fd267378-4d1d-484f-ff52-77821ed10dc2/displayicon.png",
   split: "https://media.valorant-api.com/maps/d960549e-485c-e861-8d71-aa9d1aed12a2/displayicon.png",
+  summit: "https://media.valorant-api.com/maps/756da597-416b-c0f2-f47b-afbdf28670bc/displayicon.png",
   sunset: "https://media.valorant-api.com/maps/92584fbe-486a-b1b2-9faa-39b0f486b498/displayicon.png"
 };
 
@@ -670,6 +672,9 @@ export default function StrategiesPage() {
 
       {/* CENTER MAP AREA */}
       <section style={styles.center} onClick={(e) => e.stopPropagation()}>
+        {/* Blurred background map for cool effect */}
+        <div style={{...styles.blurBg, backgroundImage: `url(${mapSrc(mapId)})`}} />
+
         <select value={mapId} onChange={(e) => { setMapId(e.target.value); clearAll(); }} style={styles.mapSelector}>
           {MAPS.map((m) => (<option key={m.id} value={m.id}>{m.label}</option>))}
         </select>
@@ -715,8 +720,8 @@ export default function StrategiesPage() {
 }
 
 const styles = {
-  shell: { height: "100%", width: "100%", display: "grid", gridTemplateColumns: "320px 1fr", gridTemplateRows: "1fr 90px", background: "#0b0f14", color: "#fff", position: "relative" },
-  leftPanel: { gridRow: "1 / span 2", background: "rgba(10,14,20,0.95)", borderRight: "1px solid rgba(255,255,255,0.08)", padding: 18, overflow: "auto" },
+  shell: { flex: 1, height: "100%", width: "100%", display: "grid", gridTemplateColumns: "320px 1fr", gridTemplateRows: "1fr 90px", background: "#0b0f14", color: "#fff", position: "relative" },
+  leftPanel: { gridRow: "1 / span 2", background: "rgba(10,14,20,0.95)", borderRight: "1px solid rgba(255,255,255,0.08)", padding: 18, overflow: "auto", zIndex: 20 },
   leftHeader: { paddingBottom: 14, marginBottom: 14, borderBottom: "1px solid rgba(255,255,255,0.08)" },
   leftTitle: { fontWeight: 900, letterSpacing: 1.2, fontSize: 16 },
   leftSub: { marginTop: 4, color: "#00ff88", fontSize: 12, fontWeight: "bold" },
@@ -731,15 +736,17 @@ const styles = {
   midBtnActiveDanger: { background: "rgba(255,70,85,0.14)", borderColor: "rgba(255,70,85,0.45)", color: "#ff4655" },
   actionBtn: { height: 40, borderRadius: 10, border: "1px solid rgba(255,255,255,0.12)", background: "rgba(0,0,0,0.30)", color: "#fff", fontWeight: 800, cursor: "pointer" },
   actionBtnDanger: { height: 40, borderRadius: 10, border: "1px solid rgba(255,70,85,0.45)", background: "rgba(255,70,85,0.12)", color: "#ff4655", fontWeight: 900, cursor: "pointer" },
-  center: { gridColumn: 2, gridRow: 1, position: "relative", padding: 16 },
-  mapSelector: { position: "absolute", top: 16, right: 16, zIndex: 10, background: "rgba(0,0,0,0.8)", color: "#fff", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 10, padding: "10px 12px", fontWeight: 700, outline: "none", cursor: "pointer" },
-  mapContainer: { position: "relative", height: "100%", width: "100%", background: "#05070b", borderRadius: 14, overflow: "hidden", border: "1px solid rgba(255,255,255,0.08)" },
+  
+  center: { gridColumn: 2, gridRow: 1, position: "relative", padding: 16, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" },
+  blurBg: { position: "absolute", inset: "-20px", backgroundSize: "cover", backgroundPosition: "center", filter: "blur(30px)", opacity: 0.3, pointerEvents: "none", zIndex: 0 },
+  mapSelector: { position: "absolute", top: 16, right: 16, zIndex: 20, background: "rgba(0,0,0,0.8)", color: "#fff", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 10, padding: "10px 12px", fontWeight: 700, outline: "none", cursor: "pointer" },
+  mapContainer: { position: "relative", height: "100%", maxHeight: "100%", maxWidth: "100%", aspectRatio: "1 / 1", background: "#05070b", borderRadius: 14, overflow: "hidden", border: "1px solid rgba(255,255,255,0.08)", zIndex: 10 },
   mapImg: { position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain", padding: "20px", pointerEvents: "none", userSelect: "none" },
   canvas: { position: "absolute", inset: 0, width: "100%", height: "100%" },
   marker: { position: "relative", width: 38, height: 38, borderRadius: "50%", border: "2px solid", background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 6px 15px rgba(0,0,0,0.4)", transition: "transform 0.1s ease" },
   markerImg: { width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" },
   abilityImg: { width: "100%", height: "100%", objectFit: "contain", padding: 4, borderRadius: "50%" },
-  footer: { gridColumn: 2, gridRow: 2, borderTop: "1px solid rgba(255,255,255,0.08)", background: "rgba(10,14,20,0.95)", display: "flex", alignItems: "center", padding: "10px 16px" },
+  footer: { gridColumn: 2, gridRow: 2, borderTop: "1px solid rgba(255,255,255,0.08)", background: "rgba(10,14,20,0.95)", display: "flex", alignItems: "center", padding: "10px 16px", zIndex: 20 },
   agentsContainer: { display: "flex", gap: 10, overflowX: "auto", width: "100%", paddingBottom: 6 },
   agentIcon: { width: 54, height: 54, borderRadius: 12, cursor: "grab", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.10)", padding: 4, transition: "transform 0.12s ease" },
   floatingMenu: { position: "fixed", zIndex: 9999, display: "flex", gap: 8, padding: "10px", borderRadius: 12, background: "rgba(15, 20, 30, 0.95)", border: "1px solid rgba(255,255,255,0.2)", boxShadow: "0 12px 30px rgba(0,0,0,0.6)" },
