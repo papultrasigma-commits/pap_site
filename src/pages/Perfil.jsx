@@ -350,6 +350,7 @@ export default function Profile({
     mainRole: "Não definida",
     secRole: "Não definida",
     joinDate: "...",
+    bio: "",
   });
 
   const [avatarUrl, setAvatarUrl] = useState(null);
@@ -453,6 +454,7 @@ export default function Profile({
           setDbUser({
             mainRole: profile.main_role || "Não definida",
             secRole: profile.secondary_role || "Não definida",
+            bio: profile.bio || "",
             joinDate: profile.created_at
               ? new Date(profile.created_at).toLocaleDateString("pt-PT", {
                   month: "short",
@@ -1213,6 +1215,12 @@ export default function Profile({
             {isRiotLinked && (
               <p className="text-gray-500 text-sm font-bold -mt-0.5 mb-1">
                 #{targetRiotAccount.tag}
+              </p>
+            )}
+
+            {dbUser.bio && (
+              <p className="text-gray-300 text-sm mt-3 italic whitespace-pre-wrap max-w-lg border-l-2 border-red-500 pl-3">
+                {dbUser.bio}
               </p>
             )}
 

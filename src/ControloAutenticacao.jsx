@@ -21,6 +21,34 @@ export default function AuthGate({ onBack }) {
   useEffect(() => {
     let mounted = true;
 
+    // Função auxiliar para verificar banimento
+    const checkBanStatus = async (userSession) => {
+      if (!userSession) return false;
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('banned_until, is_banned')
+        .eq('id', userSession.user.id)
+        .maybeSingle();
+
+      const isTempBanned = profile?.banned_until && new Date(profile.banned_until) > new Date();
+      const isPermBanned = profile?.is_banned;
+
+      if (isTempBanned || isPermBanned) {
+        sessionStorage.setItem("is_banned_screen", "true");
+        setIsBanned(true);
+        setBanDate(
+          isPermBanned || (isTempBanned && new Date(profile.banned_until).getFullYear() > 2100)
+            ? t("authGate.permanent") || "Permanente"
+            : new Date(profile.banned_until).toLocaleDateString(
+                language === "en" ? "en-US" : "pt-PT"
+              )
+        );
+        await supabase.auth.signOut();
+        return true;
+      }
+      return false;
+    };
+
     const inicializarAutenticacao = async () => {
       const href = LINK_ORIGINAL;
       let entrouComoRecuperacao = false;
@@ -67,29 +95,16 @@ export default function AuthGate({ onBack }) {
           }
       }
 
+
+
       // 2. COMPORTAMENTO NORMAL (Sem link de recuperação)
       if (!entrouComoRecuperacao) {
           const { data } = await supabase.auth.getSession();
           if (!mounted) return;
 
           if (data.session) {
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('banned_until')
-              .eq('id', data.session.user.id)
-              .maybeSingle();
-
-            if (profile?.banned_until && new Date(profile.banned_until) > new Date()) {
-              setIsBanned(true);
-              setBanDate(
-                new Date(profile.banned_until).getFullYear() > 2100
-                  ? t("authGate.permanent")
-                  : new Date(profile.banned_until).toLocaleDateString(
-                      language === "en" ? "en-US" : "pt-PT"
-                    )
-              );
-              await supabase.auth.signOut();
-            } else {
+            const wasBanned = await checkBanStatus(data.session);
+            if (!wasBanned) {
               setSession(data.session);
             }
           }
@@ -100,14 +115,17 @@ export default function AuthGate({ onBack }) {
 
     inicializarAutenticacao();
 
-    const { data: sub } = supabase.auth.onAuthStateChange((event, newSession) => {
+    const { data: sub } = supabase.auth.onAuthStateChange(async (event, newSession) => {
       if (!mounted) return;
       
       if (event === 'PASSWORD_RECOVERY') {
          setIsRecoveryMode(true);
          setSession(newSession);
       } else if (event === 'SIGNED_IN') {
-         if (!isRecoveryMode) setSession(newSession);
+         if (!isRecoveryMode) {
+           const wasBanned = await checkBanStatus(newSession);
+           if (!wasBanned) setSession(newSession);
+         }
       } else if (event === 'SIGNED_OUT') {
          setSession(null);
          setIsRecoveryMode(false);
@@ -165,7 +183,11 @@ export default function AuthGate({ onBack }) {
           <p className="text-gray-400 mb-6 text-sm leading-relaxed">
             {t("authGate.suspensionEnds")} <span className="text-red-400 font-bold uppercase">{banDate}</span>
           </p>
-          <button onClick={() => window.location.href = getHashPath("/")} className="w-full bg-gray-800 text-white font-bold py-3 rounded-lg hover:bg-gray-700 transition uppercase text-xs tracking-wider">
+          <button onClick={() => {
+            sessionStorage.removeItem("is_banned_screen");
+            window.location.href = getHashPath("/");
+            window.location.reload();
+          }} className="w-full bg-gray-800 text-white font-bold py-3 rounded-lg hover:bg-gray-700 transition uppercase text-xs tracking-wider">
             {t("authGate.backHome")}
           </button>
         </div>

@@ -35,6 +35,7 @@ export default function Settings({ riotAccount, setRiotAccount, userName }) {
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [roleMessage, setRoleMessage] = useState({ type: "", text: "" });
   const [avatarMessage, setAvatarMessage] = useState({ type: "", text: "" });
+  const [bio, setBio] = useState("");
 
   // --- ESTADOS: MUDAR SENHA ---
   const [newPassword, setNewPassword] = useState("");
@@ -63,7 +64,7 @@ export default function Settings({ riotAccount, setRiotAccount, userName }) {
 
       const { data: profile, error } = await supabase
         .from("profiles")
-        .select("main_role, secondary_role, avatar_url, riot_account")
+        .select("main_role, secondary_role, avatar_url, riot_account, bio")
         .eq("id", userRes.user.id)
         .maybeSingle();
 
@@ -76,6 +77,7 @@ export default function Settings({ riotAccount, setRiotAccount, userName }) {
         if (profile.main_role) setMainRole(profile.main_role);
         if (profile.secondary_role) setSecRole(profile.secondary_role);
         if (profile.avatar_url) setAvatarUrl(profile.avatar_url);
+        if (profile.bio) setBio(profile.bio);
 
         if (profile.riot_account && typeof setRiotAccount === "function") {
           setRiotAccount(profile.riot_account);
@@ -227,6 +229,7 @@ export default function Settings({ riotAccount, setRiotAccount, userName }) {
         .update({
           main_role: mainRole,
           secondary_role: secRole,
+          bio: bio,
         })
         .eq("id", userRes.user.id);
 
@@ -883,6 +886,22 @@ const riotAccountData = {
               </div>
             </div>
 
+            <div className="mt-6">
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+                Biografia
+              </label>
+              <textarea
+                value={bio}
+                onChange={(e) => setBio(e.target.value)}
+                maxLength={200}
+                placeholder="Conta-nos um pouco sobre ti..."
+                className="w-full bg-[#181a1b] border border-gray-800 rounded px-4 py-3 text-white focus:outline-none focus:border-red-500 transition-colors resize-none h-24"
+              ></textarea>
+              <div className="text-right text-xs text-gray-500 mt-1">
+                {bio.length} / 200
+              </div>
+            </div>
+
             <div className="mt-6 flex justify-end">
               <button
                 onClick={handleSaveRoles}
@@ -894,7 +913,7 @@ const riotAccountData = {
                 ) : (
                   <Save size={16} />
                 )}
-                {t("settings.saveRoles")}
+                {t("settings.saveRoles")} / Bio
               </button>
             </div>
           </div>

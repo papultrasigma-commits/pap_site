@@ -35,7 +35,9 @@ export default function HomePage() {
 
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT') {
-        setShowAuth(false); 
+        if (sessionStorage.getItem("is_banned_screen") !== "true") {
+          setShowAuth(false); 
+        }
       } else if (event === 'SIGNED_IN' || event === 'PASSWORD_RECOVERY') {
         setShowAuth(true); 
       }
